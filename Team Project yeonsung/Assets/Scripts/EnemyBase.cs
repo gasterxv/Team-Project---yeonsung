@@ -124,11 +124,13 @@ public abstract class EnemyBase : MonoBehaviour
         if (currentState == MonsterState.Dead)
             return;
 
-        ChangeState(
-            HP > 0
-                ? MonsterState.GetDamage
-                : MonsterState.Dead
-        );
+        if (HP <= 0)
+        {
+            ChangeState(MonsterState.Dead);
+            return;
+        }
+
+        ChangeState(MonsterState.GetDamage);
     }
 
     protected virtual void Death()
