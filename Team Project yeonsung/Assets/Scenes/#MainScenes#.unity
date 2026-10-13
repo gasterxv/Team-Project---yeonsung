@@ -682,10 +682,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1836152932}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 96662f5f37f3f624e8894c76dec79a1c, type: 3}
+  m_Script: {fileID: 11500000, guid: 4216ad96b5206ea4f83285c97f094345, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 2059290894}
   otherCheckPoints: []
 --- !u!61 &1836152934
 BoxCollider2D:
