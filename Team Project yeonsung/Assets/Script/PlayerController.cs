@@ -1,10 +1,29 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PlayerController : MonoBehaviour
 {
+    [Header("체력 설정")]
+    public int maxHealth = 5;                   // 최대 체력
+    public float hitInvincibleTime = 1f;        // 맞은 뒤 무적 시간(초)
+    public float blinkInterval = 0.1f;          // 무적 중 깜빡이는 간격(초)
+    public bool restartOnDeath = true;          // 사망하면 씬을 다시 불러올지 (임시 처리)
+    public float restartDelay = 2f;             // 사망 후 씬을 다시 불러오기까지 시간(초)
+    public bool showHealthUI = true;            // 화면에 체력 바 표시
+    public Vector2 healthUIPosition = new Vector2(10f, 150f);  // 체력 바 위치 (화면 왼쪽 위 기준)
+    public Vector2 healthUISize = new Vector2(260f, 24f);      // 체력 바 크기
+
+    [Header("체력 테스트 (확인용)")]
+    public bool enableTestKeys = true;          // 테스트 키 사용 여부 (나중에 꺼주세요)
+    public KeyCode testDamageKey = KeyCode.H;   // 누르면 대미지를 받음
+    public KeyCode testHealKey = KeyCode.J;     // 누르면 체력 회복
+    public int testDamage = 1;                  // 테스트 대미지 크기
+
     [Header("이동 설정")]
+    public KeyCode moveLeftKey = KeyCode.LeftArrow;   // 왼쪽 이동 키 (왼쪽 화살표)
+    public KeyCode moveRightKey = KeyCode.RightArrow; // 오른쪽 이동 키 (오른쪽 화살표)
     public float moveSpeed = 5f;
 
     [Header("점프 설정")]
@@ -51,6 +70,14 @@ public class PlayerController : MonoBehaviour
     private bool isGrounded;
     private bool isAttacking;
     private int facingDir = 1;              // 1 = 오른쪽, -1 = 왼쪽
+    private float defaultGravity;           // 원래 중력 값 (사망 시 복구용)
+    private CollisionDetectionMode2D defaultCollisionMode;
+
+    // 체력 상태
+    private int currentHealth;              // 현재 체력
+    private bool isDead;                    // 사망 여부
+    private bool isHitInvincible;           // 피격 후 무적 상태
+    private Color originalColor = Color.white;
 
     // 대쉬 상태
     private bool isDashing;                 // 대쉬 중에만 true
@@ -61,14 +88,29 @@ public class PlayerController : MonoBehaviour
     private bool isSpecialAttacking;        // 특수공격 전체 동안 true (멈춤 + 낙하)
     private bool isDiving;                  // 낙하 중에만 true
     private bool diveLanded;                // 낙하 중 착지했는지
-    private bool isInvincible;              // 무적 상태
+    private bool isSpecialInvincible;       // 특수공격 중 무적 상태
     private float nextSpecialTime;          // 다음에 특수공격을 쓸 수 있는 시각
     private HashSet<Collider2D> specialHitSet = new HashSet<Collider2D>();
 
-    // 나중에 적의 공격 코드에서 "if (player.IsInvincible) return;" 처럼 사용합니다.
+    // 무적 여부 (피격 후 무적 또는 특수공격 중 무적)
     public bool IsInvincible
     {
-        get { return isInvincible; }
+        get { return isHitInvincible || isSpecialInvincible; }
+    }
+
+    public int CurrentHealth
+    {
+        get { return currentHealth; }
+    }
+
+    public int MaxHealth
+    {
+        get { return maxHealth; }
+    }
+
+    public bool IsDead
+    {
+        get { return isDead; }
     }
 
     void Awake()
@@ -76,10 +118,39 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         col = GetComponent<Collider2D>();
+
+        defaultGravity = rb.gravityScale;
+        defaultCollisionMode = rb.collisionDetectionMode;
+        currentHealth = maxHealth;
+
+        if (spriteRenderer != null)
+        {
+            originalColor = spriteRenderer.color;
+        }
     }
 
     void Update()
     {
+        // 사망하면 아무 입력도 받지 않습니다.
+        if (isDead)
+        {
+            moveInput = 0f;
+            return;
+        }
+
+        // 체력 테스트 키 (몬스터 공격을 만들기 전 확인용)
+        if (enableTestKeys)
+        {
+            if (Input.GetKeyDown(testDamageKey))
+            {
+                TakeDamage(testDamage);
+            }
+            if (Input.GetKeyDown(testHealKey))
+            {
+                Heal(testDamage);
+            }
+        }
+
         // 대쉬, 특수공격, 일반공격 중에는 이동/점프/다른 행동 입력을 막습니다.
         if (isDashing || isSpecialAttacking || isAttacking)
         {
@@ -87,8 +158,16 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 좌우 이동 입력
-        moveInput = Input.GetAxis("Horizontal");
+        // 좌우 이동 입력 (지정한 키만 읽습니다. 둘 다 누르면 멈춤)
+        moveInput = 0f;
+        if (Input.GetKey(moveLeftKey))
+        {
+            moveInput -= 1f;
+        }
+        if (Input.GetKey(moveRightKey))
+        {
+            moveInput += 1f;
+        }
 
         // 점프 (위 방향키), 땅에 닿아있을 때만
         if (Input.GetKeyDown(jumpKey) && isGrounded)
@@ -117,6 +196,13 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
+        // 사망하면 좌우로 멈춥니다 (낙하 속도는 유지)
+        if (isDead)
+        {
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            return;
+        }
+
         // 대쉬나 특수공격 중에는 각 코루틴이 속도를 직접 조절합니다.
         if (isDashing || isSpecialAttacking)
         {
@@ -145,6 +231,113 @@ public class PlayerController : MonoBehaviour
         }
 
         // TODO: 이미지/애니메이션 작업 끝나면 여기에 animator.SetFloat("Speed", Mathf.Abs(moveInput)); 추가 예정
+    }
+
+    // ---------------- 체력 ----------------
+
+    // 몬스터의 공격이 이 함수를 호출합니다. (예: hit.SendMessageUpwards("TakeDamage", 1);)
+    public void TakeDamage(int damage)
+    {
+        if (isDead)
+        {
+            return;
+        }
+
+        // 무적 중에는 대미지를 받지 않습니다. (특수공격 중, 피격 직후)
+        if (IsInvincible)
+        {
+            Debug.Log("무적 상태라 대미지를 받지 않았어요.");
+            return;
+        }
+
+        currentHealth = Mathf.Max(0, currentHealth - damage);
+        Debug.Log("플레이어 피격! 대미지: " + damage + " / 남은 체력: " + currentHealth + " / " + maxHealth);
+
+        // TODO: 애니메이션 작업 후 여기에 animator.SetTrigger("Hurt"); 추가 예정
+
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+        else
+        {
+            StartCoroutine(HitInvincibleRoutine());
+        }
+    }
+
+    public void Heal(int amount)
+    {
+        if (isDead)
+        {
+            return;
+        }
+
+        currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
+        Debug.Log("체력 회복! 현재 체력: " + currentHealth + " / " + maxHealth);
+    }
+
+    // 피격 후 잠깐 무적이 되고 깜빡입니다.
+    IEnumerator HitInvincibleRoutine()
+    {
+        isHitInvincible = true;
+
+        float endTime = Time.time + hitInvincibleTime;
+        bool faded = false;
+
+        while (Time.time < endTime)
+        {
+            faded = !faded;
+            SetSpriteAlpha(faded ? 0.3f : 1f);
+            yield return new WaitForSeconds(Mathf.Max(0.02f, blinkInterval));
+        }
+
+        SetSpriteAlpha(1f);
+        isHitInvincible = false;
+    }
+
+    void SetSpriteAlpha(float alpha)
+    {
+        if (spriteRenderer == null)
+        {
+            return;
+        }
+
+        Color c = originalColor;
+        c.a = alpha;
+        spriteRenderer.color = c;
+    }
+
+    void Die()
+    {
+        isDead = true;
+        Debug.Log("플레이어 사망!");
+
+        // 진행 중이던 대쉬, 공격, 특수공격, 깜빡임을 모두 멈추고 상태를 정리합니다.
+        StopAllCoroutines();
+        isDashing = false;
+        isAttacking = false;
+        isSpecialAttacking = false;
+        isDiving = false;
+        isSpecialInvincible = false;
+        isHitInvincible = false;
+        rb.gravityScale = defaultGravity;
+        rb.collisionDetectionMode = defaultCollisionMode;
+        rb.linearVelocity = Vector2.zero;
+        SetSpriteAlpha(1f);
+
+        // TODO: 애니메이션 작업 후 여기에 animator.SetTrigger("Die"); 추가 예정
+
+        if (restartOnDeath)
+        {
+            StartCoroutine(RestartRoutine());
+        }
+    }
+
+    // 임시 사망 처리: 잠시 뒤 현재 씬을 다시 불러옵니다.
+    IEnumerator RestartRoutine()
+    {
+        yield return new WaitForSeconds(restartDelay);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     // ---------------- 대쉬 ----------------
@@ -271,7 +464,7 @@ public class PlayerController : MonoBehaviour
     IEnumerator SpecialAttackRoutine()
     {
         isSpecialAttacking = true;
-        isInvincible = true;
+        isSpecialInvincible = true;
         diveLanded = false;
         specialHitSet.Clear();
         nextSpecialTime = Time.time + specialCooldown;
@@ -309,7 +502,7 @@ public class PlayerController : MonoBehaviour
         rb.collisionDetectionMode = originalMode;
         isDiving = false;
         isSpecialAttacking = false;
-        isInvincible = false;
+        isSpecialInvincible = false;
         Debug.Log("착지! 특수공격 종료");
     }
 
@@ -379,17 +572,39 @@ public class PlayerController : MonoBehaviour
         Gizmos.DrawWireCube(GetAttackCenter(dir), size);
     }
 
-    // 화면 왼쪽 아래에 대쉬/특수공격 쿨타임을 표시합니다. (글자가 깨지지 않게 영어로 표시)
+    // 화면에 체력 바와 대쉬/특수공격 쿨타임을 표시합니다. (글자가 깨지지 않게 영어로 표시)
     void OnGUI()
     {
+        GUIStyle style = new GUIStyle(GUI.skin.label);
+        style.fontSize = 20;
+        style.normal.textColor = Color.white;
+
+        // 체력 바
+        if (showHealthUI)
+        {
+            float ratio = (maxHealth > 0) ? (float)currentHealth / maxHealth : 0f;
+            Rect back = new Rect(healthUIPosition.x, healthUIPosition.y, healthUISize.x, healthUISize.y);
+            Rect fill = new Rect(back.x, back.y, back.width * Mathf.Clamp01(ratio), back.height);
+
+            Color oldColor = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.7f);
+            GUI.DrawTexture(back, Texture2D.whiteTexture);
+            GUI.color = (ratio > 0.3f) ? new Color(0.2f, 0.9f, 0.3f) : new Color(0.95f, 0.2f, 0.2f);
+            GUI.DrawTexture(fill, Texture2D.whiteTexture);
+            GUI.color = oldColor;
+
+            string hpText = "HP " + currentHealth + " / " + maxHealth;
+            if (isDead)
+            {
+                hpText = "DEAD";
+            }
+            GUI.Label(new Rect(back.x, back.y + back.height + 2f, 300f, 30f), hpText, style);
+        }
+
         if (!showCooldownUI)
         {
             return;
         }
-
-        GUIStyle style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 20;
-        style.normal.textColor = Color.white;
 
         // 대쉬 표시
         float dashRemain = nextDashTime - Time.time;

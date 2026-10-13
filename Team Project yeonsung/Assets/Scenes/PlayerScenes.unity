@@ -724,6 +724,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c81f2446bce267542afc589e3ad16861, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  maxHealth: 50
+  hitInvincibleTime: 1
+  blinkInterval: 0.1
+  restartOnDeath: 1
+  restartDelay: 2
+  showHealthUI: 1
+  healthUIPosition: {x: 10, y: 150}
+  healthUISize: {x: 260, y: 24}
+  enableTestKeys: 1
+  testDamageKey: 104
+  testHealKey: 106
+  testDamage: 1
+  moveLeftKey: 276
+  moveRightKey: 275
   moveSpeed: 5
   jumpKey: 273
   jumpForce: 7
@@ -733,7 +747,6 @@ MonoBehaviour:
   dashCooldown: 0.8
   dashIgnoreGravity: 1
   attackKey: 120
-  attackBothSides: 1
   attackDamage: 1
   attackRange: 1
   attackHeight: 1
