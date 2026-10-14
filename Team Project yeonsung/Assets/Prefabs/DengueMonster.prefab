@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 3492859720984353035}
   - component: {fileID: -2141721429914866284}
   m_Layer: 0
-  m_Name: MonsterA
+  m_Name: DengueMonster
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -115,6 +115,7 @@ MonoBehaviour:
   attackRangeSensor: {fileID: 8168712878373058782, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
   MonsterCurrentHP: 100
   MonsterWalkSpeed: 2
+  MonsterAttackInterval: 2
   MonsterAttackCooldown: 0
   patrolWalkTime: 5
   patrolIdleTime: 3

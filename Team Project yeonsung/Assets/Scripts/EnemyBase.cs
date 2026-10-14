@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public abstract class EnemyBase : MonoBehaviour
@@ -12,28 +12,31 @@ public abstract class EnemyBase : MonoBehaviour
         GetDamage
     }
 
-    [Header("ÄÄÆ÷³ÍÆ®")]
+    [Header("ì»´í¬ë„ŒíŠ¸")]
     [SerializeField] protected Animator animator;
     [SerializeField] private Rigidbody2D body;
     [SerializeField] private Collider2D monsterBodyCollider;
     [SerializeField] private SpriteRenderer spriteRenderer;
 
-    // ¿øº» ½ºÇÁ¶óÀÌÆ®°¡ ¿À¸¥ÂÊÀ» º¸°í ÀÖ´ÂÁö
+    // ì›ë³¸ ìŠ¤í”„ë¼ì´íŠ¸ê°€ ì˜¤ë¥¸ìª½ì„ ë³´ê³  ìˆëŠ”ì§€
     [SerializeField] private bool spriteFacesRight = true;
     protected int FacingDirection => facingDirection;
 
-    [Header("¼¾¼­")]
+    [Header("ì„¼ì„œ")]
     [SerializeField] private EnemySensor recognitionSensor;
     [SerializeField] private EnemySensor attackRangeSensor;
 
-    [Header("´É·ÂÄ¡")]
+    [Header("ëŠ¥ë ¥ì¹˜")]
     [SerializeField] protected int MonsterCurrentHP = 100;
     [SerializeField] protected float MonsterWalkSpeed = 2f;
 
-    // ½ÇÁ¦ °ø°İ °£°İ ¼³Á¤Àº º°µµ °ø°İ ÄÚµå¿¡¼­ Ã³¸®
+    // ê³µê²©ì´ ëë‚œ ë’¤ ê¸°ë‹¤ë¦´ ì‹œê°„ â€” ì¸ìŠ¤í™í„°ì—ì„œ ì„¤ì •
+    [SerializeField] protected float MonsterAttackInterval = 2f;
+
+    // í˜„ì¬ ë‚¨ì€ ê³µê²© ì¿¨íƒ€ì„
     [SerializeField] protected float MonsterAttackCooldown = 0f;
 
-    [Header("¼øÂû")]
+    [Header("ìˆœì°°")]
     [SerializeField] private float patrolWalkTime = 5f;
     [SerializeField] private float patrolIdleTime = 3f;
 
@@ -46,14 +49,14 @@ public abstract class EnemyBase : MonoBehaviour
     private bool isAttackLocked;
     private bool isPatrolling;
 
-    // 0: ¿À¸¥ÂÊ ÀÌµ¿, 1: ´ë±â, 2: ¿ŞÂÊ ÀÌµ¿, 3: ´ë±â
+    // 0: ì˜¤ë¥¸ìª½ ì´ë™, 1: ëŒ€ê¸°, 2: ì™¼ìª½ ì´ë™, 3: ëŒ€ê¸°
     private int patrolStep;
     private float patrolTimer;
 
-    // ¿À¸¥ÂÊ 1, ¿ŞÂÊ -1
+    // ì˜¤ë¥¸ìª½ 1, ì™¼ìª½ -1
     private int facingDirection = 1;
 
-    // ¼öÆò ÀÌµ¿ ÀÔ·Â: -1, 0, 1
+    // ìˆ˜í‰ ì´ë™ ì…ë ¥: -1, 0, 1
     private float moveDirection;
 
     protected virtual void Awake()
@@ -80,7 +83,7 @@ public abstract class EnemyBase : MonoBehaviour
 
     protected virtual void Update()
     {
-        // ³²Àº ÄğÅ¸ÀÓ °¨¼Ò
+        // ë‚¨ì€ ì¿¨íƒ€ì„ ê°ì†Œ
         MonsterAttackCooldown = Mathf.Max(
             0f,
             MonsterAttackCooldown - Time.deltaTime
@@ -107,19 +110,19 @@ public abstract class EnemyBase : MonoBehaviour
                 break;
 
             case MonsterState.GetDamage:
-                // ÇÇ°İ Á¾·á ÀÌº¥Æ®¸¦ ±â´Ù¸²
+                // í”¼ê²© ì¢…ë£Œ ì´ë²¤íŠ¸ë¥¼ ê¸°ë‹¤ë¦¼
                 break;
         }
     }
 
     protected virtual void FixedUpdate()
     {
-        // °È±â »óÅÂ¿¡¼­¸¸ ¼öÆò ÀÌµ¿
+        // ê±·ê¸° ìƒíƒœì—ì„œë§Œ ìˆ˜í‰ ì´ë™
         float horizontalSpeed = currentState == MonsterState.Walk
             ? moveDirection * MonsterWalkSpeed
             : 0f;
 
-        // ³«ÇÏ¡¤Á¡ÇÁ µîÀÇ ¼öÁ÷ ¼Óµµ´Â À¯Áö
+        // ë‚™í•˜Â·ì í”„ ë“±ì˜ ìˆ˜ì§ ì†ë„ëŠ” ìœ ì§€
         body.linearVelocity = new Vector2(
             horizontalSpeed,
             body.linearVelocity.y
@@ -140,19 +143,19 @@ public abstract class EnemyBase : MonoBehaviour
         Collider2D attackTarget = attackRangeSensor.PlayerCollider;
         Collider2D recognitionTarget = recognitionSensor.PlayerCollider;
 
-        // ÀÎ½Ä ¹üÀ§ÀÇ ÇÃ·¹ÀÌ¾î¸¦ ÀúÀå.
-        // °ø°İ ¹üÀ§¿¡¼­¸¸ °¨ÁöµÇ´Â °æ¿ì¿¡µµ ´ëÀÀ.
+        // ì¸ì‹ ë²”ìœ„ì˜ í”Œë ˆì´ì–´ë¥¼ ì €ì¥.
+        // ê³µê²© ë²”ìœ„ì—ì„œë§Œ ê°ì§€ë˜ëŠ” ê²½ìš°ì—ë„ ëŒ€ì‘.
         targetCollider = recognitionTarget != null
             ? recognitionTarget
             : attackTarget;
 
         if (targetCollider != null)
         {
-            // ÇÃ·¹ÀÌ¾î¸¦ ¹ß°ßÇÏ¸é ¼øÂû Áß´Ü
+            // í”Œë ˆì´ì–´ë¥¼ ë°œê²¬í•˜ë©´ ìˆœì°° ì¤‘ë‹¨
             isPatrolling = false;
         }
 
-        // °ø°İ Áß¿¡´Â ÀÌµ¿°ú ¹æÇâ ÀüÈ¯À» ÇÏÁö ¾ÊÀ½
+        // ê³µê²© ì¤‘ì—ëŠ” ì´ë™ê³¼ ë°©í–¥ ì „í™˜ì„ í•˜ì§€ ì•ŠìŒ
         if (isAttackLocked)
         {
             StopHorizontalMovement();
@@ -189,7 +192,7 @@ public abstract class EnemyBase : MonoBehaviour
             return;
         }
 
-        // ÇÃ·¹ÀÌ¾î°¡ ¾øÀ» ¶§ ÇÇ°İ µ¿ÀÛÀ» ¼øÂû·Î µ¤¾î¾²Áö ¾ÊÀ½
+        // í”Œë ˆì´ì–´ê°€ ì—†ì„ ë•Œ í”¼ê²© ë™ì‘ì„ ìˆœì°°ë¡œ ë®ì–´ì“°ì§€ ì•ŠìŒ
         if (currentState == MonsterState.GetDamage)
         {
             StopHorizontalMovement();
@@ -214,7 +217,7 @@ public abstract class EnemyBase : MonoBehaviour
             SetFacing(-1);
         }
 
-        // °°Àº XÁÂÇ¥ÀÌ¸é ±âÁ¸ ¹æÇâ À¯Áö
+        // ê°™ì€ Xì¢Œí‘œì´ë©´ ê¸°ì¡´ ë°©í–¥ ìœ ì§€
     }
 
     private void SetFacing(int direction)
@@ -232,7 +235,7 @@ public abstract class EnemyBase : MonoBehaviour
     {
         if (!isPatrolling)
         {
-            // ÇÃ·¹ÀÌ¾î¸¦ ³õÄ£ µÚ¿¡´Â ¼øÂûÀ» Ã³À½ºÎÅÍ ½ÃÀÛ
+            // í”Œë ˆì´ì–´ë¥¼ ë†“ì¹œ ë’¤ì—ëŠ” ìˆœì°°ì„ ì²˜ìŒë¶€í„° ì‹œì‘
             isPatrolling = true;
             patrolStep = 0;
             patrolTimer = patrolWalkTime;
@@ -288,14 +291,29 @@ public abstract class EnemyBase : MonoBehaviour
         if (currentState == MonsterState.Dead)
             return;
 
+        // ì‚¬ë§ì€ ë‹¤ë¥¸ ì „í™˜ ì œí•œë³´ë‹¤ ìš°ì„ 
         if (MonsterCurrentHP <= 0)
             nextState = MonsterState.Dead;
 
+        // ê³µê²©ì´ ëë‚˜ê¸° ì „ì—ëŠ” ì‚¬ë§ ì™¸ ìƒíƒœ ì „í™˜ ì°¨ë‹¨
         if (isAttackLocked && nextState != MonsterState.Dead)
             return;
 
         if (currentState == nextState)
             return;
+
+        // ì¿¨íƒ€ì„ì´ ë‚¨ì•„ ìˆìœ¼ë©´ ê³µê²© ì§„ì… ì°¨ë‹¨
+        if (nextState == MonsterState.Attack &&
+            MonsterAttackCooldown > 0f)
+        {
+            return;
+        }
+
+        // ê³µê²© ìƒíƒœì—ì„œ ë²—ì–´ë‚˜ëŠ” ìˆœê°„ ì¿¨íƒ€ì„ ì‹œì‘
+        if (currentState == MonsterState.Attack)
+        {
+            MonsterAttackCooldown = MonsterAttackInterval;
+        }
 
         currentState = nextState;
         isAttackLocked = nextState == MonsterState.Attack;
@@ -359,7 +377,7 @@ public abstract class EnemyBase : MonoBehaviour
         );
     }
 
-    // °ø°İ ¾Ö´Ï¸ŞÀÌ¼Ç ¸¶Áö¸·¿¡ ¿¬°á
+    // ê³µê²© ì• ë‹ˆë©”ì´ì…˜ ë§ˆì§€ë§‰ì— ì—°ê²°
     public void OnAttackAnimationEnd()
     {
         if (currentState != MonsterState.Attack)
@@ -371,7 +389,7 @@ public abstract class EnemyBase : MonoBehaviour
         UpdateState();
     }
 
-    // ÇÇ°İ ¾Ö´Ï¸ŞÀÌ¼Ç ¸¶Áö¸·¿¡ ¿¬°á
+    // í”¼ê²© ì• ë‹ˆë©”ì´ì…˜ ë§ˆì§€ë§‰ì— ì—°ê²°
     public void OnDamageAnimationEnd()
     {
         if (currentState != MonsterState.GetDamage)
@@ -381,7 +399,7 @@ public abstract class EnemyBase : MonoBehaviour
         UpdateState();
     }
 
-    // »ç¸Á ¾Ö´Ï¸ŞÀÌ¼Ç ¸¶Áö¸·¿¡ ¿¬°á
+    // ì‚¬ë§ ì• ë‹ˆë©”ì´ì…˜ ë§ˆì§€ë§‰ì— ì—°ê²°
     public void OnDeathAnimationEnd()
     {
         if (currentState == MonsterState.Dead)
