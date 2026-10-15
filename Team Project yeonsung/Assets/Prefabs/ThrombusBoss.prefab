@@ -76,7 +76,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bossBodyCollider: {fileID: 825475860317742412, guid: dbf02222d84080241a05092fd579b243, type: 3}
-  playerBodyCollider: {fileID: 0}
+  playerBodyCollider: {fileID: 6862215085036484750, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
   spriteRenderer: {fileID: 3072571635955988095}
   spriteFacesRight: 1
   pattern1Sensor: {fileID: 1022627804448366039, guid: 49e557d311069f549a4789712548807b, type: 3}
@@ -95,7 +95,7 @@ MonoBehaviour:
   onPlayerContactDamage:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 1071796265944891538, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
         m_TargetAssemblyTypeName: 
         m_MethodName: 
         m_Mode: 0
