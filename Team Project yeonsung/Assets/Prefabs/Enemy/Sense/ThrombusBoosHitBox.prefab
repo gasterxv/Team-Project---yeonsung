@@ -82,7 +82,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 68dbf6dd26d1d3e4799ca72ecbf4d81e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  owner: {fileID: 0}
+  owner: {fileID: 943302706770889981, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
   sensorType: 1
   playerBodyTag: Player
   playerAttackTag: PlayerAttack
