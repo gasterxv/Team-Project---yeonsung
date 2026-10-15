@@ -1,5 +1,6 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody2D))]
 public abstract class EnemyBase : MonoBehaviour
 {
     public enum MonsterState
@@ -11,31 +12,85 @@ public abstract class EnemyBase : MonoBehaviour
         GetDamage
     }
 
+    [Header("ì»´í¬ë„ŒíŠ¸")]
     [SerializeField] protected Animator animator;
+    [SerializeField] private Rigidbody2D body;
+    [SerializeField] private Collider2D monsterBodyCollider;
+    [SerializeField] private SpriteRenderer spriteRenderer;
 
-    [SerializeField] protected int HP = 100;
+    // ì›ë³¸ ìŠ¤í”„ë¼ì´íŠ¸ê°€ ì˜¤ë¥¸ìª½ì„ ë³´ê³  ìˆëŠ”ì§€
+    [SerializeField] private bool spriteFacesRight = true;
+    protected int FacingDirection => facingDirection;
 
-    // °ø°İ °£°İ ÀÚÃ¼°¡ ¾Æ´Ñ '³²Àº °ø°İ ÄğÅ¸ÀÓ'
-    [SerializeField] protected float MonsterAttackCooldown = 0f;
-
+    [Header("ì„¼ì„œ")]
     [SerializeField] private EnemySensor recognitionSensor;
     [SerializeField] private EnemySensor attackRangeSensor;
 
+    [Header("ëŠ¥ë ¥ì¹˜")]
+    [SerializeField] protected int MonsterCurrentHP = 100;
+    [SerializeField] protected float MonsterWalkSpeed = 2f;
+
+    // ê³µê²©ì´ ëë‚œ ë’¤ ê¸°ë‹¤ë¦´ ì‹œê°„ â€” ì¸ìŠ¤í™í„°ì—ì„œ ì„¤ì •
+    [SerializeField] protected float MonsterAttackInterval = 2f;
+
+    // í˜„ì¬ ë‚¨ì€ ê³µê²© ì¿¨íƒ€ì„
+    [SerializeField] protected float MonsterAttackCooldown = 0f;
+
+    [Header("ìˆœì°°")]
+    [SerializeField] private float patrolWalkTime = 5f;
+    [SerializeField] private float patrolIdleTime = 3f;
+
     protected MonsterState currentState = MonsterState.Idle;
 
-    // ¸ó½ºÅÍ ¸Å´ÏÀú µî¿¡¼­ ÇöÀç »óÅÂ È®ÀÎ °¡´É
     public MonsterState CurrentState => currentState;
+
+    private Collider2D targetCollider;
+
+    private bool isAttackLocked;
+    private bool isPatrolling;
+
+    // 0: ì˜¤ë¥¸ìª½ ì´ë™, 1: ëŒ€ê¸°, 2: ì™¼ìª½ ì´ë™, 3: ëŒ€ê¸°
+    private int patrolStep;
+    private float patrolTimer;
+
+    // ì˜¤ë¥¸ìª½ 1, ì™¼ìª½ -1
+    private int facingDirection = 1;
+
+    // ìˆ˜í‰ ì´ë™ ì…ë ¥: -1, 0, 1
+    private float moveDirection;
+
+    protected virtual void Awake()
+    {
+        if (body == null)
+        {
+            body = GetComponent<Rigidbody2D>();
+        }
+    }
 
     protected virtual void Start()
     {
+        SetFacing(1);
+
+        if (MonsterCurrentHP <= 0)
+        {
+            ChangeState(MonsterState.Dead);
+        }
+        else
+        {
+            OnStateChanged(currentState);
+        }
     }
 
     protected virtual void Update()
     {
-        // ÇöÀç Á¶°Ç¿¡ ¸ÂÃç »óÅÂ¸¦ ¸ÕÀú °áÁ¤
+        // ë‚¨ì€ ì¿¨íƒ€ì„ ê°ì†Œ
+        MonsterAttackCooldown = Mathf.Max(
+            0f,
+            MonsterAttackCooldown - Time.deltaTime
+        );
+
         UpdateState();
 
-        // °áÁ¤µÈ »óÅÂÀÇ Çàµ¿ ½ÇÇà
         switch (currentState)
         {
             case MonsterState.Idle:
@@ -55,43 +110,180 @@ public abstract class EnemyBase : MonoBehaviour
                 break;
 
             case MonsterState.GetDamage:
-                GetDamage();
+                // í”¼ê²© ì¢…ë£Œ ì´ë²¤íŠ¸ë¥¼ ê¸°ë‹¤ë¦¼
                 break;
         }
     }
 
+    protected virtual void FixedUpdate()
+    {
+        // ê±·ê¸° ìƒíƒœì—ì„œë§Œ ìˆ˜í‰ ì´ë™
+        float horizontalSpeed = currentState == MonsterState.Walk
+            ? moveDirection * MonsterWalkSpeed
+            : 0f;
+
+        // ë‚™í•˜Â·ì í”„ ë“±ì˜ ìˆ˜ì§ ì†ë„ëŠ” ìœ ì§€
+        body.linearVelocity = new Vector2(
+            horizontalSpeed,
+            body.linearVelocity.y
+        );
+    }
+
     protected virtual void UpdateState()
     {
-        // »ç¸Á »óÅÂ¿¡¼­´Â º¯°æ ºÒ°¡
         if (currentState == MonsterState.Dead)
             return;
 
-        if (HP <= 0)
+        if (MonsterCurrentHP <= 0)
         {
             ChangeState(MonsterState.Dead);
             return;
         }
 
-        // °ø°İ ¹üÀ§ ¾ÈÀÌ¶ó¸é ÄğÅ¸ÀÓ¿¡ µû¶ó »óÅÂ °áÁ¤
-        if (attackRangeSensor.HasPlayer)
+        Collider2D attackTarget = attackRangeSensor.PlayerCollider;
+        Collider2D recognitionTarget = recognitionSensor.PlayerCollider;
+
+        // ì¸ì‹ ë²”ìœ„ì˜ í”Œë ˆì´ì–´ë¥¼ ì €ì¥.
+        // ê³µê²© ë²”ìœ„ì—ì„œë§Œ ê°ì§€ë˜ëŠ” ê²½ìš°ì—ë„ ëŒ€ì‘.
+        targetCollider = recognitionTarget != null
+            ? recognitionTarget
+            : attackTarget;
+
+        if (targetCollider != null)
         {
-            if (MonsterAttackCooldown <= 0f)
+            // í”Œë ˆì´ì–´ë¥¼ ë°œê²¬í•˜ë©´ ìˆœì°° ì¤‘ë‹¨
+            isPatrolling = false;
+        }
+
+        // ê³µê²© ì¤‘ì—ëŠ” ì´ë™ê³¼ ë°©í–¥ ì „í™˜ì„ í•˜ì§€ ì•ŠìŒ
+        if (isAttackLocked)
+        {
+            StopHorizontalMovement();
+            return;
+        }
+
+        if (targetCollider != null)
+        {
+            UpdateFacingToTarget();
+
+            if (attackTarget != null)
             {
-                ChangeState(MonsterState.Attack);
+                StopHorizontalMovement();
+
+                ChangeState(
+                    MonsterAttackCooldown <= 0f
+                        ? MonsterState.Attack
+                        : MonsterState.Idle
+                );
             }
             else
             {
-                ChangeState(MonsterState.Idle);
+                float differenceX =
+                    targetCollider.bounds.center.x -
+                    monsterBodyCollider.bounds.center.x;
+
+                moveDirection = differenceX > 0f
+                    ? 1f
+                    : differenceX < 0f ? -1f : 0f;
+
+                ChangeState(MonsterState.Walk);
             }
-        }
-        // °ø°İ ¹üÀ§ ¹ÛÀÌÁö¸¸ ÀÎ½Ä ¹üÀ§ ¾ÈÀÌ¶ó¸é ÀÌµ¿
-        else if (recognitionSensor.HasPlayer)
-        {
-            ChangeState(MonsterState.Walk);
+
+            return;
         }
 
-        // µÎ ¹üÀ§ ¸ğµÎ ¹ÛÀÌ¸é ¿©±â¼­´Â »óÅÂ¸¦ ¹Ù²ÙÁö ¾ÊÀ½.
-        // ¸ó½ºÅÍ ¸Å´ÏÀú¿¡¼­ Ã³¸®.
+        // í”Œë ˆì´ì–´ê°€ ì—†ì„ ë•Œ í”¼ê²© ë™ì‘ì„ ìˆœì°°ë¡œ ë®ì–´ì“°ì§€ ì•ŠìŒ
+        if (currentState == MonsterState.GetDamage)
+        {
+            StopHorizontalMovement();
+            return;
+        }
+
+        UpdatePatrol();
+    }
+
+    private void UpdateFacingToTarget()
+    {
+        float differenceX =
+            targetCollider.bounds.center.x -
+            monsterBodyCollider.bounds.center.x;
+
+        if (differenceX > 0f)
+        {
+            SetFacing(1);
+        }
+        else if (differenceX < 0f)
+        {
+            SetFacing(-1);
+        }
+
+        // ê°™ì€ Xì¢Œí‘œì´ë©´ ê¸°ì¡´ ë°©í–¥ ìœ ì§€
+    }
+
+    private void SetFacing(int direction)
+    {
+        facingDirection = direction;
+
+        bool facingLeft = facingDirection < 0;
+
+        spriteRenderer.flipX = spriteFacesRight
+            ? facingLeft
+            : !facingLeft;
+    }
+
+    private void UpdatePatrol()
+    {
+        if (!isPatrolling)
+        {
+            // í”Œë ˆì´ì–´ë¥¼ ë†“ì¹œ ë’¤ì—ëŠ” ìˆœì°°ì„ ì²˜ìŒë¶€í„° ì‹œì‘
+            isPatrolling = true;
+            patrolStep = 0;
+            patrolTimer = patrolWalkTime;
+        }
+        else
+        {
+            patrolTimer -= Time.deltaTime;
+
+            if (patrolTimer <= 0f)
+            {
+                patrolStep = (patrolStep + 1) % 4;
+
+                patrolTimer = patrolStep == 0 || patrolStep == 2
+                    ? patrolWalkTime
+                    : patrolIdleTime;
+            }
+        }
+
+        switch (patrolStep)
+        {
+            case 0:
+                moveDirection = 1f;
+                SetFacing(1);
+                ChangeState(MonsterState.Walk);
+                break;
+
+            case 1:
+            case 3:
+                StopHorizontalMovement();
+                ChangeState(MonsterState.Idle);
+                break;
+
+            case 2:
+                moveDirection = -1f;
+                SetFacing(-1);
+                ChangeState(MonsterState.Walk);
+                break;
+        }
+    }
+
+    private void StopHorizontalMovement()
+    {
+        moveDirection = 0f;
+
+        body.linearVelocity = new Vector2(
+            0f,
+            body.linearVelocity.y
+        );
     }
 
     public void ChangeState(MonsterState nextState)
@@ -99,58 +291,126 @@ public abstract class EnemyBase : MonoBehaviour
         if (currentState == MonsterState.Dead)
             return;
 
-        // HP°¡ 0 ÀÌÇÏ¸é ¿äÃ»ÇÑ »óÅÂº¸´Ù »ç¸ÁÀ» ¿ì¼±
-        if (HP <= 0)
+        // ì‚¬ë§ì€ ë‹¤ë¥¸ ì „í™˜ ì œí•œë³´ë‹¤ ìš°ì„ 
+        if (MonsterCurrentHP <= 0)
             nextState = MonsterState.Dead;
+
+        // ê³µê²©ì´ ëë‚˜ê¸° ì „ì—ëŠ” ì‚¬ë§ ì™¸ ìƒíƒœ ì „í™˜ ì°¨ë‹¨
+        if (isAttackLocked && nextState != MonsterState.Dead)
+            return;
 
         if (currentState == nextState)
             return;
 
-        currentState = nextState;
+        // ì¿¨íƒ€ì„ì´ ë‚¨ì•„ ìˆìœ¼ë©´ ê³µê²© ì§„ì… ì°¨ë‹¨
+        if (nextState == MonsterState.Attack &&
+            MonsterAttackCooldown > 0f)
+        {
+            return;
+        }
 
-        // »óÅÂ°¡ ¹Ù²ï ¼ø°£ ÇÑ ¹ø ½ÇÇà
+        // ê³µê²© ìƒíƒœì—ì„œ ë²—ì–´ë‚˜ëŠ” ìˆœê°„ ì¿¨íƒ€ì„ ì‹œì‘
+        if (currentState == MonsterState.Attack)
+        {
+            MonsterAttackCooldown = MonsterAttackInterval;
+        }
+
+        currentState = nextState;
+        isAttackLocked = nextState == MonsterState.Attack;
+
+        if (nextState != MonsterState.Walk)
+        {
+            StopHorizontalMovement();
+        }
+
+        if (nextState == MonsterState.Dead)
+        {
+            isPatrolling = false;
+        }
+
         OnStateChanged(nextState);
     }
 
     protected virtual void OnStateChanged(MonsterState newState)
     {
-        // ¾Ö´Ï¸ŞÀÌ¼Ç ½ÃÀÛ µî »óÅÂ º¯°æ ¼ø°£ÀÇ Ã³¸®°¡ ÇÊ¿äÇÏ¸é
-        // ÀÚ½Ä Å¬·¡½º¿¡¼­ overrideÇÏ¿© ±¸Çö
+        switch (newState)
+        {
+            case MonsterState.Idle:
+                animator.Play("Base Layer.Idle", 0, 0f);
+                break;
+
+            case MonsterState.Walk:
+                animator.Play("Base Layer.Walk", 0, 0f);
+                break;
+
+            case MonsterState.Attack:
+                animator.Play("Base Layer.Attack", 0, 0f);
+                break;
+
+            case MonsterState.GetDamage:
+                animator.Play("Base Layer.GetDamage", 0, 0f);
+                break;
+
+            case MonsterState.Dead:
+                animator.Play("Base Layer.Death", 0, 0f);
+                break;
+        }
     }
 
-    // ÇÇ°İ¿ë ¼¾¼­°¡ ÇÃ·¹ÀÌ¾î °ø°İÀ» °¨ÁöÇßÀ» ¶§ È£Ãâ
-    public void NotifyPlayerAttack()
+    public void NotifyPlayerAttack(int damageValue)
     {
         if (currentState == MonsterState.Dead)
             return;
 
-        if (HP <= 0)
+        if (MonsterCurrentHP <= 0)
         {
             ChangeState(MonsterState.Dead);
             return;
         }
 
-        ChangeState(MonsterState.GetDamage);
+        GetDamage(damageValue);
+
+        ChangeState(
+            MonsterCurrentHP <= 0
+                ? MonsterState.Dead
+                : MonsterState.GetDamage
+        );
     }
 
-    protected virtual void Death()
+    // ê³µê²© ì• ë‹ˆë©”ì´ì…˜ ë§ˆì§€ë§‰ì— ì—°ê²°
+    public void OnAttackAnimationEnd()
     {
-        gameObject.SetActive(false);
+        if (currentState != MonsterState.Attack)
+            return;
+
+        isAttackLocked = false;
+
+        ChangeState(MonsterState.Idle);
+        UpdateState();
     }
 
-    protected virtual void GetDamage()
+    // í”¼ê²© ì• ë‹ˆë©”ì´ì…˜ ë§ˆì§€ë§‰ì— ì—°ê²°
+    public void OnDamageAnimationEnd()
     {
+        if (currentState != MonsterState.GetDamage)
+            return;
+
+        ChangeState(MonsterState.Idle);
+        UpdateState();
     }
 
-    protected virtual void Attack()
+    // ì‚¬ë§ ì• ë‹ˆë©”ì´ì…˜ ë§ˆì§€ë§‰ì— ì—°ê²°
+    public void OnDeathAnimationEnd()
     {
+        if (currentState == MonsterState.Dead)
+        {
+            gameObject.SetActive(false);
+        }
     }
 
-    protected virtual void Walk()
-    {
-    }
-
-    protected virtual void Idle()
-    {
-    }
+    protected virtual void GetDamage(int damageValue) { }
+    protected virtual void Death() { }
+    protected virtual void Attack() { }
+    protected virtual void Walk() { }
+    protected virtual void Idle() { }
 }
