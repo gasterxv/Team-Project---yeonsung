@@ -4,7 +4,12 @@
 TagManager:
   serializedVersion: 3
   tags:
+<<<<<<< HEAD
   - "\uCCB4\uD06C\uD3EC\uC778\uD2B8"
+=======
+  - Ground
+  - CheckPoint
+>>>>>>> de1ef6888fb7738cceeaf1510ba66114cc3edbf1
   layers:
   - Default
   - TransparentFX
@@ -13,8 +18,8 @@ TagManager:
   - Water
   - UI
   - 
-  - 
-  - 
+  - Player
+  - Enemy
   - 
   - 
   - 
