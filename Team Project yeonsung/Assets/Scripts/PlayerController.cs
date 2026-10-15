@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class PlayerController : MonoBehaviour
 {
@@ -9,11 +8,12 @@ public class PlayerController : MonoBehaviour
     public int maxHealth = 5;                   // 최대 체력
     public float hitInvincibleTime = 1f;        // 맞은 뒤 무적 시간(초)
     public float blinkInterval = 0.1f;          // 무적 중 깜빡이는 간격(초)
-    public bool restartOnDeath = true;          // 사망하면 씬을 다시 불러올지 (임시 처리)
-    public float restartDelay = 2f;             // 사망 후 씬을 다시 불러오기까지 시간(초)
     public bool showHealthUI = true;            // 화면에 체력 바 표시
     public Vector2 healthUIPosition = new Vector2(10f, 150f);  // 체력 바 위치 (화면 왼쪽 위 기준)
     public Vector2 healthUISize = new Vector2(260f, 24f);      // 체력 바 크기
+
+    [Header("회복약 설정")]
+    public int maxRemainingHealPotion = 3;      // 최대 회복약 개수 (부활하면 이 값으로 채워짐)
 
     [Header("체력 테스트 (확인용)")]
     public bool enableTestKeys = true;          // 테스트 키 사용 여부 (나중에 꺼주세요)
@@ -63,6 +63,9 @@ public class PlayerController : MonoBehaviour
     public bool showAttackBox = true;        // 공격 중 박스 표시 여부
     public bool showAttackBoxAlways = false; // 공격 안 할 때도 박스 표시 여부
 
+    // 플레이어가 사망할 때 딱 한 번 실행되는 이벤트 (예: PlayerController.OnPlayerDeath += 내함수;)
+    public static event System.Action OnPlayerDeath;
+
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private Collider2D col;
@@ -75,6 +78,7 @@ public class PlayerController : MonoBehaviour
 
     // 체력 상태
     private int currentHealth;              // 현재 체력
+    private int remainingHealPotion;        // 남은 회복약 개수
     private bool isDead;                    // 사망 여부
     private bool isHitInvincible;           // 피격 후 무적 상태
     private Color originalColor = Color.white;
@@ -108,6 +112,16 @@ public class PlayerController : MonoBehaviour
         get { return maxHealth; }
     }
 
+    public int RemainingHealPotion
+    {
+        get { return remainingHealPotion; }
+    }
+
+    public int MaxRemainingHealPotion
+    {
+        get { return maxRemainingHealPotion; }
+    }
+
     public bool IsDead
     {
         get { return isDead; }
@@ -122,6 +136,7 @@ public class PlayerController : MonoBehaviour
         defaultGravity = rb.gravityScale;
         defaultCollisionMode = rb.collisionDetectionMode;
         currentHealth = maxHealth;
+        remainingHealPotion = maxRemainingHealPotion;
 
         if (spriteRenderer != null)
         {
@@ -138,7 +153,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 체력 테스트 키 (몬스터 공격을 만들기 전 확인용)
+        // 체력 테스트 키 (확인용)
         if (enableTestKeys)
         {
             if (Input.GetKeyDown(testDamageKey))
@@ -235,7 +250,7 @@ public class PlayerController : MonoBehaviour
 
     // ---------------- 체력 ----------------
 
-    // 몬스터의 공격이 이 함수를 호출합니다. (예: hit.SendMessageUpwards("TakeDamage", 1);)
+    // 함정, 몬스터의 공격이 이 함수를 호출합니다. (예: player.TakeDamage(1);)
     public void TakeDamage(int damage)
     {
         if (isDead)
@@ -257,7 +272,7 @@ public class PlayerController : MonoBehaviour
 
         if (currentHealth <= 0)
         {
-            Die();
+            PlayerDeath();
         }
         else
         {
@@ -274,6 +289,15 @@ public class PlayerController : MonoBehaviour
 
         currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
         Debug.Log("체력 회복! 현재 체력: " + currentHealth + " / " + maxHealth);
+    }
+
+    // 부활할 때 GameFlowManager가 호출합니다. (체력과 회복약을 최대로 되돌림)
+    public void RestoreFull()
+    {
+        currentHealth = maxHealth;
+        remainingHealPotion = maxRemainingHealPotion;
+        isDead = false;
+        Debug.Log("부활! 체력: " + currentHealth + " / " + maxHealth + ", 회복약: " + remainingHealPotion + " / " + maxRemainingHealPotion);
     }
 
     // 피격 후 잠깐 무적이 되고 깜빡입니다.
@@ -307,12 +331,19 @@ public class PlayerController : MonoBehaviour
         spriteRenderer.color = c;
     }
 
-    void Die()
+    // 체력이 0이 되면 실행됩니다.
+    // 조작 비활성화 -> 죽음 애니메이션 -> 이벤트 1회 -> GameFlowManager가 게임오버 UI, 암전, 부활을 진행합니다.
+    public void PlayerDeath()
     {
+        if (isDead)
+        {
+            return; // 한 번만 실행
+        }
+
         isDead = true;
         Debug.Log("플레이어 사망!");
 
-        // 진행 중이던 대쉬, 공격, 특수공격, 깜빡임을 모두 멈추고 상태를 정리합니다.
+        // 1) 모든 조작 비활성화: 진행 중이던 대쉬, 공격, 특수공격, 깜빡임을 멈추고 상태를 정리
         StopAllCoroutines();
         isDashing = false;
         isAttacking = false;
@@ -325,19 +356,22 @@ public class PlayerController : MonoBehaviour
         rb.linearVelocity = Vector2.zero;
         SetSpriteAlpha(1f);
 
+        // 2) 죽음 애니메이션
         // TODO: 애니메이션 작업 후 여기에 animator.SetTrigger("Die"); 추가 예정
 
-        if (restartOnDeath)
-        {
-            StartCoroutine(RestartRoutine());
-        }
-    }
+        // 3) 사망 이벤트 (한 번만 실행)
+        OnPlayerDeath?.Invoke();
 
-    // 임시 사망 처리: 잠시 뒤 현재 씬을 다시 불러옵니다.
-    IEnumerator RestartRoutine()
-    {
-        yield return new WaitForSeconds(restartDelay);
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        // 4) 게임오버 UI -> 플레이어 제거 -> 암전 -> 체크포인트 부활
+        GameFlowManager manager = GameFlowManager.Instance;
+        if (manager != null)
+        {
+            manager.BeginDeathSequence(this);
+        }
+        else
+        {
+            Debug.LogError("씬에 GameFlowManager가 없어요! 빈 오브젝트를 만들어 GameFlowManager 스크립트를 붙여주세요.");
+        }
     }
 
     // ---------------- 대쉬 ----------------
@@ -599,6 +633,8 @@ public class PlayerController : MonoBehaviour
                 hpText = "DEAD";
             }
             GUI.Label(new Rect(back.x, back.y + back.height + 2f, 300f, 30f), hpText, style);
+            GUI.Label(new Rect(back.x, back.y + back.height + 28f, 300f, 30f),
+                "Potion " + remainingHealPotion + " / " + maxRemainingHealPotion, style);
         }
 
         if (!showCooldownUI)
