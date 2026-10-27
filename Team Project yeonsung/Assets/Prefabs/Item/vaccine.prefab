@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 8640998899512268571}
   - component: {fileID: 5324062822935368417}
   m_Layer: 0
-  m_Name: "\uBC31\uC2E0"
+  m_Name: vaccine
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
