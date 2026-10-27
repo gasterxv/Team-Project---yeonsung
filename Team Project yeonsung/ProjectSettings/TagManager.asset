@@ -4,12 +4,11 @@
 TagManager:
   serializedVersion: 3
   tags:
-<<<<<<< HEAD
   - "\uCCB4\uD06C\uD3EC\uC778\uD2B8"
-=======
+  - PlayerAttack
   - Ground
   - CheckPoint
->>>>>>> de1ef6888fb7738cceeaf1510ba66114cc3edbf1
+  - BoseRoomDashFloor
   layers:
   - Default
   - TransparentFX
@@ -49,10 +48,3 @@ TagManager:
     locked: 0
   m_RenderingLayers:
   - Default
-  - Light Layer 1
-  - Light Layer 2
-  - Light Layer 3
-  - Light Layer 4
-  - Light Layer 5
-  - Light Layer 6
-  - Light Layer 7
