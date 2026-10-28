@@ -47,6 +47,19 @@ public class BossController : MonoBehaviour
     [Header("몸 접촉 피해")]
     [SerializeField, Min(0)] private int contactDamage = 10;
 
+    [Header("점프 이동")]
+    [SerializeField] private Rigidbody2D body;
+    [SerializeField] private Transform groundCheck;
+    [SerializeField] private LayerMask groundLayer;
+
+    [SerializeField, Min(0.01f)] private float groundCheckRadius = 0.1f;
+    [SerializeField, Min(0f)] private float jumpHorizontalSpeed = 3f;
+    [SerializeField, Min(0.1f)] private float jumpVerticalSpeed = 7f;
+    [SerializeField, Min(0f)] private float jumpWaitTime = 0.5f;
+
+    private bool isWalkJumping;
+    private float jumpWaitRemaining;
+
     // 플레이어의 Damaged(int)를 연결할 곳
     [SerializeField]
     private UnityEvent<int> onPlayerContactDamage =
@@ -58,6 +71,15 @@ public class BossController : MonoBehaviour
     public BossState CurrentState => currentState;
     public int CurrentHP => currentHP;
     public int FacingDirection => facingDirection;
+    private bool isPattern1Jumping;
+
+    private void Awake()
+    {
+        if (body == null)
+        {
+            body = GetComponent<Rigidbody2D>();
+        }
+    }
 
     private void Start()
     {
@@ -94,19 +116,15 @@ public class BossController : MonoBehaviour
 
         // 일반 전투 판단은 Walk 상태에서만 실행.
         // 대기·포효·패턴 상태는 종료 조건을 기다림.
-        if (currentState == BossState.Walk)
-        {
-            SelectNextAction();
-        }
+        
 
         switch (currentState)
         {
             case BossState.Walk:
-                Walk();
                 break;
 
             case BossState.Pattern1:
-                UpdatePattern1();
+                StartPattern1Jump();
                 break;
 
             case BossState.Pattern2:
@@ -118,9 +136,54 @@ public class BossController : MonoBehaviour
                 break;
         }
     }
+    private void StartPattern1Jump()
+    {
+        // 점프 시작 순간의 방향으로 발사
+        body.linearVelocity = new Vector2(
+            facingDirection * jumpHorizontalSpeed * 2f,
+            jumpVerticalSpeed * 2f
+        );
 
+        isPattern1Jumping = true;
+    }
+    private void CheckPattern1Landing()
+    {
+        if (currentState != BossState.Pattern1 ||
+            !isPattern1Jumping ||
+            body == null ||
+            groundCheck == null)
+        {
+            return;
+        }
+
+        // 상승 중에는 착지로 판단하지 않음
+        if (body.linearVelocity.y > 0f)
+            return;
+
+        bool isGrounded = Physics2D.OverlapCircle(
+            groundCheck.position,
+            groundCheckRadius,
+            groundLayer
+        ) != null;
+
+        if (!isGrounded)
+            return;
+
+        isPattern1Jumping = false;
+
+        // 착지 후 수평 이동 정지
+        body.linearVelocity = new Vector2(
+            0f,
+            body.linearVelocity.y
+        );
+
+        // 기존 종료 함수가 쿨타임 설정과 Walk 복귀를 처리
+        OnPattern1End();
+    }
     private void FixedUpdate()
     {
+        CheckPattern1Landing();
+        UpdateWalkJump();
         if (currentState == BossState.Death ||
             currentHP <= 0 ||
             bossBodyCollider == null ||
@@ -143,7 +206,8 @@ public class BossController : MonoBehaviour
         if (isTouching && !wasTouchingPlayer)
         {
             wasTouchingPlayer = true;
-            onPlayerContactDamage.Invoke(contactDamage);
+            int damage = currentState == BossState.Pattern1 ? 30 : contactDamage;
+            onPlayerContactDamage.Invoke(damage);
         }
         else
         {
@@ -356,7 +420,6 @@ public class BossController : MonoBehaviour
             return;
 
         ChangeState(BossState.Walk);
-        SelectNextAction();
     }
 
     // 각 패턴의 실제 행동 또는 애니메이션 종료 시 호출
@@ -390,21 +453,82 @@ public class BossController : MonoBehaviour
         // 패턴을 벗어나는 시점부터 쿨타임 시작
         SetPatternCooldown(expectedState);
 
-        // 일반 전환 잠금을 우회하는 정상 종료 경로
         currentState = BossState.Walk;
+        OnStateEntered(BossState.Walk);
+    }
 
-        // 종료 직후 다음 행동을 선택
-        SelectNextAction();
+    private void UpdateWalkJump()
+    {
+        if (body == null || groundCheck == null)
+            return;
 
-        if (currentState == BossState.Walk)
+        // 일반 바닥 레이어만 검사
+        bool isGrounded = Physics2D.OverlapCircle(
+            groundCheck.position,
+            groundCheckRadius,
+            groundLayer
+        ) != null;
+
+        // 점프 후, 내려오는 중 바닥을 감지하면 착지 처리
+        if (isWalkJumping &&
+    body.linearVelocity.y <= 0f &&
+    isGrounded)
         {
-            OnStateEntered(BossState.Walk);
+            isWalkJumping = false;
+            jumpWaitRemaining = jumpWaitTime;
+
+            if (currentState == BossState.Walk)
+            {
+                body.linearVelocity = new Vector2(
+                    0f,
+                    body.linearVelocity.y
+                );
+
+                // 한 번의 점프가 끝난 시점에만 패턴 판단
+                SelectNextAction();
+            }
         }
+
+        // 다른 상태에서는 새 점프를 시작하지 않음
+        if (currentState != BossState.Walk || currentHP <= 0)
+            return;
+
+        // 공중에서는 다시 점프하지 않음
+        if (isWalkJumping ||
+            !isGrounded ||
+            Mathf.Abs(body.linearVelocity.y) > 0.1f)
+        {
+            return;
+        }
+
+        // 바닥에서 점프 사이 대기
+        body.linearVelocity = new Vector2(
+            0f,
+            body.linearVelocity.y
+        );
+
+        if (jumpWaitRemaining > 0f)
+        {
+            jumpWaitRemaining = Mathf.Max(
+                0f,
+                jumpWaitRemaining - Time.fixedDeltaTime
+            );
+
+            return;
+        }
+
+        Walk();
     }
 
     private void Walk()
     {
-        // 실제 걷기 이동은 추후 구현
+        // 점프하는 순간 바라보는 방향으로 속도 설정
+        body.linearVelocity = new Vector2(
+            facingDirection * jumpHorizontalSpeed,
+            jumpVerticalSpeed
+        );
+
+        isWalkJumping = true;
     }
 
     private void UpdatePattern1()

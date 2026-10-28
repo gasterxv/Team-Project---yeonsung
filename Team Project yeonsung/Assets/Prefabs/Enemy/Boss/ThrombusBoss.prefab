@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 1653050023850310939}
   - component: {fileID: 2894688466147683177}
   - component: {fileID: 943302706770889981}
+  - component: {fileID: 2819850906379478095}
   m_Layer: 0
   m_Name: ThrombusBoss
   m_TagString: Untagged
@@ -34,6 +35,7 @@ Transform:
   - {fileID: 7114023602701364632}
   - {fileID: 3477022294486813831}
   - {fileID: 6308310333000387170}
+  - {fileID: 3599188482427809670}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!50 &2894688466147683177
@@ -92,21 +94,67 @@ MonoBehaviour:
   pattern3Cooldown: 0
   currentState: 0
   contactDamage: 10
+  body: {fileID: 2894688466147683177}
+  groundCheck: {fileID: 3599188482427809670}
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 512
+  groundCheckRadius: 0.1
+  jumpHorizontalSpeed: 3
+  jumpVerticalSpeed: 7
+  jumpWaitTime: 0.5
   onPlayerContactDamage:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1071796265944891538, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
-        m_TargetAssemblyTypeName: 
-        m_MethodName: 
+      - m_Target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
+        m_MethodName: TakeDamage
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+--- !u!70 &2819850906379478095
+CapsuleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4104783086079301403}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0.00016812088, y: -0.0000021100248}
+  m_Size: {x: 0.20059614, y: 0.14270665}
+  m_Direction: 1
 --- !u!1001 &2099063871533534043
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -204,6 +252,76 @@ PrefabInstance:
 Transform:
   m_CorrespondingSourceObject: {fileID: 3270037889481492444, guid: 49e557d311069f549a4789712548807b, type: 3}
   m_PrefabInstance: {fileID: 2099063871533534043}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1001 &6859564474323262653
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1653050023850310939}
+    m_Modifications:
+    - target: {fileID: 1909221054101844564, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_Name
+      value: GroundCheck
+      objectReference: {fileID: 0}
+    - target: {fileID: 3378980287416448625, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 3378980287416448625, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_WasSpriteAssigned
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7980646070044865339, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7980646070044865339, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.67
+      objectReference: {fileID: 0}
+    - target: {fileID: 7980646070044865339, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7980646070044865339, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7980646070044865339, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7980646070044865339, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7980646070044865339, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7980646070044865339, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7980646070044865339, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7980646070044865339, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+--- !u!4 &3599188482427809670 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7980646070044865339, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+  m_PrefabInstance: {fileID: 6859564474323262653}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &7319235999175855659
 PrefabInstance:
