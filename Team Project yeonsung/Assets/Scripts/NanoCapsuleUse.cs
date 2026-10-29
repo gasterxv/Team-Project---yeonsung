@@ -8,9 +8,10 @@ public class NanoCapsuleUse : MonoBehaviour
     [SerializeField] private int RemainingHealPotion = 5;
     [SerializeField] private bool HealPotion = false;
 
-    [Header("회복 설정")]
+    [Header("회복 설정 (체력 칸 단위)")]
     [SerializeField] private float HpRecoveryTiming = 1f;
-    [SerializeField] private int HpRecoveryValue = 1;
+    [UnityEngine.Serialization.FormerlySerializedAs("HpRecoveryValue")]
+    [SerializeField, Min(1)] private int HeartCellRecoveryAmount = 1;
     [SerializeField] private KeyCode useKey = KeyCode.F;
 
     private PlayerController player;
@@ -64,7 +65,7 @@ public class NanoCapsuleUse : MonoBehaviour
             yield break;
         }
 
-        player.Heal(HpRecoveryValue);
+        player.Heal(HeartCellRecoveryAmount);
 
         if (player.CurrentHealth > healthBefore)
         {
