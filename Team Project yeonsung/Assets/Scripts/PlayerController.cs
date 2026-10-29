@@ -4,22 +4,18 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    [Header("체력 설정")]
-    public int maxHealth = 5;                   // 최대 체력
+    [Header("체력 설정 (칸 방식)")]
+    public int maxHearts = 4;                   // 최대 체력 칸 수 (기본 4칸)
     public float hitInvincibleTime = 1f;        // 맞은 뒤 무적 시간(초)
     public float blinkInterval = 0.1f;          // 무적 중 깜빡이는 간격(초)
-    public bool showHealthUI = true;            // 화면에 체력 바 표시
-    public Vector2 healthUIPosition = new Vector2(10f, 150f);  // 체력 바 위치 (화면 왼쪽 위 기준)
-    public Vector2 healthUISize = new Vector2(260f, 24f);      // 체력 바 크기
 
     [Header("회복약 설정")]
     public int maxRemainingHealPotion = 3;      // 최대 회복약 개수 (부활하면 이 값으로 채워짐)
 
     [Header("체력 테스트 (확인용)")]
     public bool enableTestKeys = true;          // 테스트 키 사용 여부 (나중에 꺼주세요)
-    public KeyCode testDamageKey = KeyCode.H;   // 누르면 대미지를 받음
-    public KeyCode testHealKey = KeyCode.J;     // 누르면 체력 회복
-    public int testDamage = 1;                  // 테스트 대미지 크기
+    public KeyCode testDamageKey = KeyCode.H;   // 누르면 한 칸이 사라짐
+    public KeyCode testHealKey = KeyCode.J;     // 누르면 한 칸 회복
 
     [Header("이동 설정")]
     public KeyCode moveLeftKey = KeyCode.LeftArrow;   // 왼쪽 이동 키 (왼쪽 화살표)
@@ -39,14 +35,21 @@ public class PlayerController : MonoBehaviour
 
     [Header("공격 설정 (바라보는 방향 앞쪽)")]
     public KeyCode attackKey = KeyCode.X;   // 공격 키
-    public int attackDamage = 1;            // 대미지
-    public float attackRange = 1f;          // 앞쪽 사거리 (가로 길이)
-    public float attackHeight = 1f;         // 공격 범위 세로 길이
-    public float attackOffsetX = 0.5f;      // 플레이어 몸에서 공격 범위가 시작되는 거리
-    public float attackOffsetY = 0f;        // 공격 범위 위아래 위치 보정
-    public float attackHitDelay = 0.1f;     // 공격 시작 후 대미지가 들어가는 시점(초)
+    public int attackDamage = 1;            // 적에게 주는 대미지
+    public float attackRange = 1f;          // 앞쪽 사거리 (히트박스 가로 길이)
+    public float attackHeight = 1f;         // 히트박스 세로 길이
+    public float attackOffsetX = 0.5f;      // 플레이어 몸에서 히트박스가 시작되는 거리
+    public float attackOffsetY = 0f;        // 히트박스 위아래 위치 보정
+    public float attackHitDelay = 0.1f;     // 공격 시작 후 히트박스가 켜지는 시점(초)
+    public float attackHitboxTime = 0.15f;  // 히트박스가 켜져 있는 시간(초)
     public float attackDuration = 0.4f;     // 공격 전체 시간(초), 끝나야 재공격 가능
     public LayerMask enemyLayer;            // 적이 속한 레이어
+
+    [Header("공격 모션 / 이펙트")]
+    public bool showAttackEffect = true;    // 공격할 때 이펙트 표시
+    public Sprite attackEffectSprite;       // 나중에 공격 이미지를 넣는 칸 (비워두면 임시 노란 박스)
+    public Color attackEffectColor = new Color(1f, 0.9f, 0.2f, 0.6f); // 임시 박스 색 (이미지가 있으면 무시)
+    public bool scaleEffectToHitbox = true; // 체크하면 이미지를 히트박스 크기에 맞춰 늘림
 
     [Header("특수공격(낙하공격) 설정")]
     public KeyCode specialKey = KeyCode.C;  // 특수공격 키
@@ -60,8 +63,8 @@ public class PlayerController : MonoBehaviour
 
     [Header("화면 표시 (확인용)")]
     public bool showCooldownUI = true;       // 화면 왼쪽 아래에 쿨타임 표시
-    public bool showAttackBox = true;        // 공격 중 박스 표시 여부
-    public bool showAttackBoxAlways = false; // 공격 안 할 때도 박스 표시 여부
+    public bool showAttackBox = true;        // 공격 중 박스 표시 여부 (Gizmos)
+    public bool showAttackBoxAlways = false; // 공격 안 할 때도 박스 표시 여부 (Gizmos)
 
     // 플레이어가 사망할 때 딱 한 번 실행되는 이벤트 (예: PlayerController.OnPlayerDeath += 내함수;)
     public static event System.Action OnPlayerDeath;
@@ -76,8 +79,14 @@ public class PlayerController : MonoBehaviour
     private float defaultGravity;           // 원래 중력 값 (사망 시 복구용)
     private CollisionDetectionMode2D defaultCollisionMode;
 
+    // 공격 이펙트 / 히트박스
+    private GameObject attackEffectObj;
+    private SpriteRenderer attackEffectRenderer;
+    private Sprite placeholderSprite;
+    private HashSet<Collider2D> attackHitSet = new HashSet<Collider2D>();
+
     // 체력 상태
-    private int currentHealth;              // 현재 체력
+    private int currentHealth;              // 현재 남은 체력 칸 수
     private int remainingHealPotion;        // 남은 회복약 개수
     private bool isDead;                    // 사망 여부
     private bool isHitInvincible;           // 피격 후 무적 상태
@@ -102,14 +111,16 @@ public class PlayerController : MonoBehaviour
         get { return isHitInvincible || isSpecialInvincible; }
     }
 
+    // 현재 남은 체력 칸 수
     public int CurrentHealth
     {
         get { return currentHealth; }
     }
 
+    // 최대 체력 칸 수
     public int MaxHealth
     {
-        get { return maxHealth; }
+        get { return maxHearts; }
     }
 
     public int RemainingHealPotion
@@ -135,12 +146,22 @@ public class PlayerController : MonoBehaviour
 
         defaultGravity = rb.gravityScale;
         defaultCollisionMode = rb.collisionDetectionMode;
-        currentHealth = maxHealth;
+        currentHealth = maxHearts;
         remainingHealPotion = maxRemainingHealPotion;
 
         if (spriteRenderer != null)
         {
             originalColor = spriteRenderer.color;
+        }
+
+        CreateAttackEffect();
+    }
+
+    void OnDestroy()
+    {
+        if (attackEffectObj != null)
+        {
+            Destroy(attackEffectObj);
         }
     }
 
@@ -158,11 +179,11 @@ public class PlayerController : MonoBehaviour
         {
             if (Input.GetKeyDown(testDamageKey))
             {
-                TakeDamage(testDamage);
+                TakeDamage();
             }
             if (Input.GetKeyDown(testHealKey))
             {
-                Heal(testDamage);
+                Heal();
             }
         }
 
@@ -248,10 +269,11 @@ public class PlayerController : MonoBehaviour
         // TODO: 이미지/애니메이션 작업 끝나면 여기에 animator.SetFloat("Speed", Mathf.Abs(moveInput)); 추가 예정
     }
 
-    // ---------------- 체력 ----------------
+    // ---------------- 체력 (칸 방식) ----------------
 
-    // 함정, 몬스터의 공격이 이 함수를 호출합니다. (예: player.TakeDamage(1);)
-    public void TakeDamage(int damage)
+    // 함정, 몬스터의 공격이 이 함수를 호출합니다. (예: player.TakeDamage();)
+    // 대미지 숫자는 쓰지 않아요. 어떤 숫자가 와도 한 번 맞으면 체력 한 칸이 사라집니다.
+    public void TakeDamage(int damage = 1)
     {
         if (isDead)
         {
@@ -265,8 +287,8 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        currentHealth = Mathf.Max(0, currentHealth - damage);
-        Debug.Log("플레이어 피격! 대미지: " + damage + " / 남은 체력: " + currentHealth + " / " + maxHealth);
+        currentHealth = Mathf.Max(0, currentHealth - 1);
+        Debug.Log("플레이어 피격! 체력 한 칸 사라짐 / 남은 칸: " + currentHealth + " / " + maxHearts);
 
         // TODO: 애니메이션 작업 후 여기에 animator.SetTrigger("Hurt"); 추가 예정
 
@@ -280,24 +302,25 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    public void Heal(int amount)
+    // 체력 칸을 회복합니다. (숫자는 회복되는 칸 수, 기본 한 칸)
+    public void Heal(int amount = 1)
     {
         if (isDead)
         {
             return;
         }
 
-        currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
-        Debug.Log("체력 회복! 현재 체력: " + currentHealth + " / " + maxHealth);
+        currentHealth = Mathf.Min(maxHearts, currentHealth + Mathf.Max(0, amount));
+        Debug.Log("체력 회복! 남은 칸: " + currentHealth + " / " + maxHearts);
     }
 
     // 부활할 때 GameFlowManager가 호출합니다. (체력과 회복약을 최대로 되돌림)
     public void RestoreFull()
     {
-        currentHealth = maxHealth;
+        currentHealth = maxHearts;
         remainingHealPotion = maxRemainingHealPotion;
         isDead = false;
-        Debug.Log("부활! 체력: " + currentHealth + " / " + maxHealth + ", 회복약: " + remainingHealPotion + " / " + maxRemainingHealPotion);
+        Debug.Log("부활! 체력 칸: " + currentHealth + " / " + maxHearts + ", 회복약: " + remainingHealPotion + " / " + maxRemainingHealPotion);
     }
 
     // 피격 후 잠깐 무적이 되고 깜빡입니다.
@@ -355,6 +378,7 @@ public class PlayerController : MonoBehaviour
         rb.collisionDetectionMode = defaultCollisionMode;
         rb.linearVelocity = Vector2.zero;
         SetSpriteAlpha(1f);
+        SetAttackEffectVisible(false);
 
         // 2) 죽음 애니메이션
         // TODO: 애니메이션 작업 후 여기에 animator.SetTrigger("Die"); 추가 예정
@@ -437,34 +461,54 @@ public class PlayerController : MonoBehaviour
 
     // ---------------- 일반 공격 (앞쪽) ----------------
 
+    // 공격 흐름: 공격 시작 -> (Attack Hit Delay) -> 히트박스와 이펙트 켜짐 -> (Attack Hitbox Time) -> 꺼짐 -> 남은 시간 대기 -> 재공격 가능
     IEnumerator AttackRoutine()
     {
         isAttacking = true;
+        attackHitSet.Clear();
         Debug.Log("공격 시작!");
 
         // TODO: 애니메이션 작업 후 여기에 animator.SetTrigger("Attack"); 추가 예정
 
         yield return new WaitForSeconds(attackHitDelay);
-        DealDamage();
 
-        yield return new WaitForSeconds(Mathf.Max(0f, attackDuration - attackHitDelay));
+        // 히트박스와 공격 이펙트가 같은 시간 동안 같이 켜집니다.
+        int dir = facingDir;
+        SetAttackEffectVisible(true);
+
+        float endTime = Time.time + Mathf.Max(attackHitboxTime, Time.fixedDeltaTime);
+        while (Time.time < endTime)
+        {
+            UpdateAttackEffect(dir);
+            AttackHitCheck(dir);
+            yield return new WaitForFixedUpdate();
+        }
+
+        SetAttackEffectVisible(false);
+        Debug.Log("공격 범위 안에 감지된 적 수: " + attackHitSet.Count);
+
+        float remain = attackDuration - attackHitDelay - attackHitboxTime;
+        yield return new WaitForSeconds(Mathf.Max(0f, remain));
+
         isAttacking = false;
         Debug.Log("공격 끝! 다시 공격 가능");
     }
 
-    // 바라보는 방향 앞쪽 박스 안의 적에게 대미지를 줍니다.
-    void DealDamage()
+    // 히트박스 안의 적에게 대미지를 줍니다. (한 번 공격에 적 하나당 1회만)
+    void AttackHitCheck(int dir)
     {
-        Vector2 center = GetAttackCenter(facingDir);
+        Vector2 center = GetAttackCenter(dir);
         Vector2 size = new Vector2(attackRange, attackHeight);
 
         Collider2D[] hits = Physics2D.OverlapBoxAll(center, size, 0f, enemyLayer);
-        Debug.Log("공격 범위 안에 감지된 적 수: " + hits.Length);
-
         foreach (Collider2D hit in hits)
         {
-            // 적 스크립트에 TakeDamage(int) 함수가 있으면 호출됩니다.
-            hit.SendMessageUpwards("TakeDamage", attackDamage, SendMessageOptions.DontRequireReceiver);
+            if (attackHitSet.Add(hit))
+            {
+                Debug.Log("공격 적중: " + hit.name);
+                // 적 스크립트에 TakeDamage(int) 함수가 있으면 호출됩니다.
+                hit.SendMessageUpwards("TakeDamage", attackDamage, SendMessageOptions.DontRequireReceiver);
+            }
         }
     }
 
@@ -474,6 +518,79 @@ public class PlayerController : MonoBehaviour
             transform.position.x + dir * (attackOffsetX + attackRange * 0.5f),
             transform.position.y + attackOffsetY
         );
+    }
+
+    // ---------------- 공격 이펙트 ----------------
+
+    void CreateAttackEffect()
+    {
+        attackEffectObj = new GameObject("AttackEffect");
+        attackEffectRenderer = attackEffectObj.AddComponent<SpriteRenderer>();
+        attackEffectRenderer.enabled = false;
+
+        if (spriteRenderer != null)
+        {
+            attackEffectRenderer.sortingLayerID = spriteRenderer.sortingLayerID;
+            attackEffectRenderer.sortingOrder = spriteRenderer.sortingOrder + 1;
+        }
+    }
+
+    // 이미지가 없을 때 쓰는 1x1 크기의 흰 네모
+    Sprite GetPlaceholderSprite()
+    {
+        if (placeholderSprite == null)
+        {
+            Texture2D tex = Texture2D.whiteTexture;
+            placeholderSprite = Sprite.Create(
+                tex,
+                new Rect(0f, 0f, tex.width, tex.height),
+                new Vector2(0.5f, 0.5f),
+                tex.width
+            );
+        }
+
+        return placeholderSprite;
+    }
+
+    void SetAttackEffectVisible(bool visible)
+    {
+        if (attackEffectRenderer == null)
+        {
+            return;
+        }
+
+        attackEffectRenderer.enabled = visible && showAttackEffect;
+    }
+
+    // 이펙트를 히트박스 위치와 크기에 맞춥니다.
+    void UpdateAttackEffect(int dir)
+    {
+        if (attackEffectRenderer == null)
+        {
+            return;
+        }
+
+        bool hasImage = (attackEffectSprite != null);
+        Sprite s = hasImage ? attackEffectSprite : GetPlaceholderSprite();
+
+        attackEffectRenderer.sprite = s;
+        attackEffectRenderer.color = hasImage ? Color.white : attackEffectColor;
+        attackEffectRenderer.flipX = (dir < 0);
+
+        Vector2 center = GetAttackCenter(dir);
+        attackEffectObj.transform.position = new Vector3(center.x, center.y, transform.position.z);
+
+        if (scaleEffectToHitbox)
+        {
+            Vector2 spriteSize = s.bounds.size;
+            float scaleX = attackRange / Mathf.Max(0.0001f, spriteSize.x);
+            float scaleY = attackHeight / Mathf.Max(0.0001f, spriteSize.y);
+            attackEffectObj.transform.localScale = new Vector3(scaleX, scaleY, 1f);
+        }
+        else
+        {
+            attackEffectObj.transform.localScale = Vector3.one;
+        }
     }
 
     // ---------------- 특수공격 (낙하공격) ----------------
@@ -606,41 +723,18 @@ public class PlayerController : MonoBehaviour
         Gizmos.DrawWireCube(GetAttackCenter(dir), size);
     }
 
-    // 화면에 체력 바와 대쉬/특수공격 쿨타임을 표시합니다. (글자가 깨지지 않게 영어로 표시)
+    // 화면 왼쪽 아래에 대쉬/특수공격 쿨타임을 표시합니다. (글자가 깨지지 않게 영어로 표시)
+    // 체력 칸과 회복약은 HealthUI 스크립트가 따로 표시합니다.
     void OnGUI()
     {
-        GUIStyle style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 20;
-        style.normal.textColor = Color.white;
-
-        // 체력 바
-        if (showHealthUI)
-        {
-            float ratio = (maxHealth > 0) ? (float)currentHealth / maxHealth : 0f;
-            Rect back = new Rect(healthUIPosition.x, healthUIPosition.y, healthUISize.x, healthUISize.y);
-            Rect fill = new Rect(back.x, back.y, back.width * Mathf.Clamp01(ratio), back.height);
-
-            Color oldColor = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-            GUI.DrawTexture(back, Texture2D.whiteTexture);
-            GUI.color = (ratio > 0.3f) ? new Color(0.2f, 0.9f, 0.3f) : new Color(0.95f, 0.2f, 0.2f);
-            GUI.DrawTexture(fill, Texture2D.whiteTexture);
-            GUI.color = oldColor;
-
-            string hpText = "HP " + currentHealth + " / " + maxHealth;
-            if (isDead)
-            {
-                hpText = "DEAD";
-            }
-            GUI.Label(new Rect(back.x, back.y + back.height + 2f, 300f, 30f), hpText, style);
-            GUI.Label(new Rect(back.x, back.y + back.height + 28f, 300f, 30f),
-                "Potion " + remainingHealPotion + " / " + maxRemainingHealPotion, style);
-        }
-
         if (!showCooldownUI)
         {
             return;
         }
+
+        GUIStyle style = new GUIStyle(GUI.skin.label);
+        style.fontSize = 20;
+        style.normal.textColor = Color.white;
 
         // 대쉬 표시
         float dashRemain = nextDashTime - Time.time;
