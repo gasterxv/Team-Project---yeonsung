@@ -74,6 +74,7 @@ public class PlayerController : MonoBehaviour
     private Collider2D col;
     private float moveInput;
     private bool isGrounded;
+    private int groundContacts;             // 지금 닿아 있는 땅(Ground 태그) 개수
     private bool isAttacking;
     private int facingDir = 1;              // 1 = 오른쪽, -1 = 왼쪽
     private float defaultGravity;           // 원래 중력 값 (사망 시 복구용)
@@ -786,6 +787,7 @@ public class PlayerController : MonoBehaviour
     {
         if (collision.gameObject.CompareTag("Ground"))
         {
+            groundContacts++;
             isGrounded = true;
             airDashUsed = false;
         }
@@ -804,12 +806,13 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // 땅에서 떨어지면 isGrounded를 false로
+    // 닿아 있는 땅이 하나도 없을 때만 isGrounded를 false로 (땅 블록이 이어져 있어도 안전하게)
     void OnCollisionExit2D(Collision2D collision)
     {
         if (collision.gameObject.CompareTag("Ground"))
         {
-            isGrounded = false;
+            groundContacts = Mathf.Max(0, groundContacts - 1);
+            isGrounded = groundContacts > 0;
         }
     }
 }
