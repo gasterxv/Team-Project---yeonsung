@@ -13,6 +13,10 @@ public class BossController : MonoBehaviour
         Death
     }
 
+    [Header("테스트")]
+    [SerializeField] private bool enableDebugKeys = true;
+    
+
     [Header("몸과 방향")]
     [SerializeField] private Collider2D bossBodyCollider;
     [SerializeField] private Collider2D playerBodyCollider;
@@ -102,6 +106,11 @@ public class BossController : MonoBehaviour
 
     private void Update()
     {
+
+        // 테스트 키로 상태를 바꾼 프레임에는 일반 판단을 건너뜀
+        if (enableDebugKeys && HandleDebugKeys())
+            return;
+
         if (currentState == BossState.Death)
             return;
 
@@ -114,34 +123,16 @@ public class BossController : MonoBehaviour
         UpdateCooldowns();
         UpdateFacing();
 
-        // 일반 전투 판단은 Walk 상태에서만 실행.
-        // 대기·포효·패턴 상태는 종료 조건을 기다림.
-        
-
-        switch (currentState)
-        {
-            case BossState.Walk:
-                break;
-
-            case BossState.Pattern1:
-                StartPattern1Jump();
-                break;
-
-            case BossState.Pattern2:
-                UpdatePattern2();
-                break;
-
-            case BossState.Pattern3:
-                UpdatePattern3();
-                break;
-        }
+        // 다음 패턴 선택은 Walk 점프 착지 시 처리
     }
     private void StartPattern1Jump()
     {
-        // 점프 시작 순간의 방향으로 발사
         body.linearVelocity = new Vector2(
+            // 수평 속도는 Walk 점프의 2배
             facingDirection * jumpHorizontalSpeed * 2f,
-            jumpVerticalSpeed * 2f
+
+            // 높이를 약 2배로 만들기 위한 수직 속도
+            jumpVerticalSpeed * Mathf.Sqrt(2f)
         );
 
         isPattern1Jumping = true;
@@ -182,6 +173,11 @@ public class BossController : MonoBehaviour
     }
     private void FixedUpdate()
     {
+        if (currentState == BossState.Death || currentHP <= 0)
+        {
+            wasTouchingPlayer = false;
+            return;
+        }
         CheckPattern1Landing();
         UpdateWalkJump();
         if (currentState == BossState.Death ||
@@ -237,7 +233,7 @@ public class BossController : MonoBehaviour
 
     private void UpdateFacing()
     {
-        if (playerBodyCollider == null)
+        if (playerBodyCollider == null || bossBodyCollider == null)
             return;
 
         float differenceX =
@@ -395,7 +391,8 @@ public class BossController : MonoBehaviour
                 break;
 
             case BossState.Pattern1:
-                // Pattern1 시작
+                // Pattern1 상태에 들어올 때 한 번만 점프
+                StartPattern1Jump();
                 break;
 
             case BossState.Pattern2:
@@ -407,8 +404,18 @@ public class BossController : MonoBehaviour
                 break;
 
             case BossState.Death:
-                // 진행 중인 공격 판정·이동 등을 정리
-                // 사망 애니메이션 시작
+                isWalkJumping = false;
+                isPattern1Jumping = false;
+                jumpWaitRemaining = 0f;
+
+                if (body != null)
+                {
+                    // 수평 이동을 멈추고, 공중에서는 중력으로 떨어지도록 유지
+                    body.linearVelocity =
+                        new Vector2(0f, body.linearVelocity.y);
+                }
+
+                // 추후 사망 애니메이션 연결
                 break;
         }
     }
@@ -544,5 +551,90 @@ public class BossController : MonoBehaviour
     private void UpdatePattern3()
     {
         // Pattern3 상태에서 매 프레임 필요한 처리
+    }
+
+    private bool HandleDebugKeys()
+    {
+#if ENABLE_INPUT_SYSTEM
+        var keyboard = UnityEngine.InputSystem.Keyboard.current;
+
+        if (keyboard == null)
+            return false;
+
+        if (keyboard.qKey.wasPressedThisFrame)
+            DebugChangeState(BossState.Waiting);
+        else if (keyboard.wKey.wasPressedThisFrame)
+            DebugChangeState(BossState.Roar);
+        else if (keyboard.eKey.wasPressedThisFrame)
+            DebugChangeState(BossState.Walk);
+        else if (keyboard.rKey.wasPressedThisFrame)
+            DebugChangeState(BossState.Pattern1);
+        else if (keyboard.aKey.wasPressedThisFrame)
+            DebugChangeState(BossState.Pattern2);
+        else if (keyboard.sKey.wasPressedThisFrame)
+            DebugChangeState(BossState.Pattern3);
+        else if (keyboard.dKey.wasPressedThisFrame)
+            DebugChangeState(BossState.Death);
+        else
+            return false;
+
+#elif ENABLE_LEGACY_INPUT_MANAGER
+    if (Input.GetKeyDown(KeyCode.Q))
+        DebugChangeState(BossState.Waiting);
+    else if (Input.GetKeyDown(KeyCode.W))
+        DebugChangeState(BossState.Roar);
+    else if (Input.GetKeyDown(KeyCode.E))
+        DebugChangeState(BossState.Walk);
+    else if (Input.GetKeyDown(KeyCode.R))
+        DebugChangeState(BossState.Pattern1);
+    else if (Input.GetKeyDown(KeyCode.A))
+        DebugChangeState(BossState.Pattern2);
+    else if (Input.GetKeyDown(KeyCode.S))
+        DebugChangeState(BossState.Pattern3);
+    else if (Input.GetKeyDown(KeyCode.D))
+        DebugChangeState(BossState.Death);
+    else
+        return false;
+#else
+    return false;
+#endif
+
+#if ENABLE_INPUT_SYSTEM || ENABLE_LEGACY_INPUT_MANAGER
+        return true;
+#endif
+    }
+
+    private void DebugChangeState(BossState nextState)
+    {
+        // 사망 후에는 테스트 키로도 상태를 바꾸지 않음
+        if (currentState == BossState.Death)
+            return;
+
+        if (currentHP <= 0)
+            nextState = BossState.Death;
+
+        if (currentState == nextState)
+            return;
+
+        // 실행 중이던 패턴의 쿨타임 설정
+        if (IsPattern(currentState))
+            SetPatternCooldown(currentState);
+
+        // 이전 점프 기록과 이동 속도 정리
+        isWalkJumping = false;
+        isPattern1Jumping = false;
+        jumpWaitRemaining = 0f;
+
+        if (body != null)
+            body.linearVelocity = Vector2.zero;
+
+        if (nextState == BossState.Waiting)
+            waitingHitCount = 0;
+
+        // 테스트에서는 패턴 잠금·진입 조건을 건너뛰고 변경
+        currentState = nextState;
+        OnStateEntered(nextState);
+
+        Debug.Log($"보스 테스트 상태: {currentState}", this);
     }
 }

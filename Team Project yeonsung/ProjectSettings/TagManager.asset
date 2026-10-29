@@ -9,6 +9,7 @@ TagManager:
   - Ground
   - CheckPoint
   - BoseRoomDashFloor
+  - EnemyAttact
   layers:
   - Default
   - TransparentFX

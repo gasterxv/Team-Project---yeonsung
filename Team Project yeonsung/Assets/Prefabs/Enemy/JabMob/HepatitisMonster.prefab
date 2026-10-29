@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 1599530118667925532}
   - component: {fileID: 3492859720984353035}
   - component: {fileID: -2141721429914866284}
+  - component: {fileID: 7158104827543684862}
   m_Layer: 0
   m_Name: HepatitisMonster
   m_TagString: Untagged
@@ -111,8 +112,8 @@ MonoBehaviour:
   monsterBodyCollider: {fileID: 2293413594911524086}
   spriteRenderer: {fileID: 6075009684905038535}
   spriteFacesRight: 1
-  recognitionSensor: {fileID: -8579422804087719624, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
-  attackRangeSensor: {fileID: 8168712878373058782, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
+  recognitionSensor: {fileID: 1473976500014293510}
+  attackRangeSensor: {fileID: 3565083628368622379}
   MonsterCurrentHP: 100
   MonsterWalkSpeed: 2
   MonsterAttackInterval: 2
@@ -148,7 +149,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!95 &-2141721429914866284
 Animator:
   serializedVersion: 7
@@ -171,6 +172,42 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!58 &7158104827543684862
+CircleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7770212493554130551}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: 0}
+  m_Radius: 0.1
 --- !u!1001 &1022966709402534905
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -181,7 +218,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4119867452376680221, guid: 7c53bfe39f8161e40a3790eb8c010ae8, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.328
+      value: 0.164
       objectReference: {fileID: 0}
     - target: {fileID: 4119867452376680221, guid: 7c53bfe39f8161e40a3790eb8c010ae8, type: 3}
       propertyPath: m_LocalPosition.y
@@ -311,6 +348,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
+--- !u!114 &1473976500014293510 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: -8579422804087719624, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
+  m_PrefabInstance: {fileID: 2061339915804154686}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2fd9ee0571e1f042ba9a5da9acec940, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!4 &7249503385005104150 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8646965505022723880, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
@@ -480,6 +528,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
+--- !u!114 &3565083628368622379 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8168712878373058782, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
+  m_PrefabInstance: {fileID: 4621996957503409141}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2fd9ee0571e1f042ba9a5da9acec940, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!4 &5203496044637952537 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 581573119624794604, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
