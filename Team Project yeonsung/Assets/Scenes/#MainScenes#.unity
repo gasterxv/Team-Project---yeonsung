@@ -6946,6 +6946,14 @@ PrefabInstance:
       propertyPath: attackBoxLifetime
       value: 5
       objectReference: {fileID: 0}
+    - target: {fileID: 2696752955430566358, guid: 00b31384a4dc7d941aa2c0f8a8e171fb, type: 3}
+      propertyPath: m_IsTrigger
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3492859720984353035, guid: 00b31384a4dc7d941aa2c0f8a8e171fb, type: 3}
+      propertyPath: m_Mass
+      value: 50
+      objectReference: {fileID: 0}
     - target: {fileID: 6947550065567345980, guid: 00b31384a4dc7d941aa2c0f8a8e171fb, type: 3}
       propertyPath: m_LocalPosition.x
       value: 5.9

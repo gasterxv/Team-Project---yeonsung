@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 3492859720984353035}
   - component: {fileID: -2141721429914866284}
   - component: {fileID: 2696752955430566358}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DengueMonster
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -122,6 +122,7 @@ MonoBehaviour:
   patrolIdleTime: 3
   attackBoxPrefab: {fileID: 9199786445007790732, guid: d5018249a2c33414087a87b7194b2e34, type: 3}
   attackSpawnPoint: {fileID: 3971888258885223652}
+  attackBoxSpawnDelay: 0.5
   attackBoxLifetime: 0.2
 --- !u!50 &3492859720984353035
 Rigidbody2D:
@@ -135,7 +136,7 @@ Rigidbody2D:
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
-  m_Mass: 1
+  m_Mass: 50
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_GravityScale: 1
@@ -260,6 +261,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: AttackPoint
       objectReference: {fileID: 0}
+    - target: {fileID: 5625399974170526358, guid: 7c53bfe39f8161e40a3790eb8c010ae8, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -297,6 +302,10 @@ PrefabInstance:
     - target: {fileID: 8555836731667553362, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
       propertyPath: m_Name
       value: RecognitionSensor
+      objectReference: {fileID: 0}
+    - target: {fileID: 8555836731667553362, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
+      propertyPath: m_Layer
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 8646965505022723880, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
       propertyPath: m_LocalScale.x
@@ -435,6 +444,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: MonsterHurtBox (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 2717463136155482775, guid: ce3e6b5d14e1a294d939cc2aa9717ee4, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
     - target: {fileID: 3980758116757666456, guid: ce3e6b5d14e1a294d939cc2aa9717ee4, type: 3}
       propertyPath: m_IsTrigger
       value: 1
@@ -521,6 +534,10 @@ PrefabInstance:
     - target: {fileID: 7537743186197442494, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
       propertyPath: m_Name
       value: attackRangeSensor
+      objectReference: {fileID: 0}
+    - target: {fileID: 7537743186197442494, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
+      propertyPath: m_Layer
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 8168712878373058782, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
       propertyPath: owner

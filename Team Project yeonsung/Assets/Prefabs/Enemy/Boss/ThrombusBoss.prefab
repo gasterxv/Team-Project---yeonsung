@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 2894688466147683177}
   - component: {fileID: 943302706770889981}
   - component: {fileID: 2819850906379478095}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: ThrombusBoss
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -50,7 +50,7 @@ Rigidbody2D:
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
-  m_Mass: 1
+  m_Mass: 100
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_GravityScale: 1
@@ -77,6 +77,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e6eda0f790036b34a922c08bcbc6d8b7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  enableDebugKeys: 1
   bossBodyCollider: {fileID: 825475860317742412, guid: dbf02222d84080241a05092fd579b243, type: 3}
   playerBodyCollider: {fileID: 6862215085036484750, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
   spriteRenderer: {fileID: 3072571635955988095}
@@ -187,6 +188,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: ThrombusBoosPattern1Range
       objectReference: {fileID: 0}
+    - target: {fileID: 3203968253290957249, guid: 49e557d311069f549a4789712548807b, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
     - target: {fileID: 3270037889481492444, guid: 49e557d311069f549a4789712548807b, type: 3}
       propertyPath: m_LocalScale.x
       value: 0.1
@@ -265,6 +270,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: GroundCheck
       objectReference: {fileID: 0}
+    - target: {fileID: 1909221054101844564, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
     - target: {fileID: 3378980287416448625, guid: 4a53ca5ec0ea99845859221289657056, type: 3}
       propertyPath: m_Sprite
       value: 
@@ -334,6 +343,10 @@ PrefabInstance:
     - target: {fileID: 2349828557451793860, guid: 954560c0d1ad28c4c8580e04d4c7001d, type: 3}
       propertyPath: m_Name
       value: BossForm
+      objectReference: {fileID: 0}
+    - target: {fileID: 2349828557451793860, guid: 954560c0d1ad28c4c8580e04d4c7001d, type: 3}
+      propertyPath: m_Layer
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 3609838028027774025, guid: 954560c0d1ad28c4c8580e04d4c7001d, type: 3}
       propertyPath: m_LocalPosition.x
@@ -445,6 +458,10 @@ PrefabInstance:
     - target: {fileID: 2178335216458541225, guid: dbf02222d84080241a05092fd579b243, type: 3}
       propertyPath: m_Name
       value: ThrombusBoosHitBox
+      objectReference: {fileID: 0}
+    - target: {fileID: 2178335216458541225, guid: dbf02222d84080241a05092fd579b243, type: 3}
+      propertyPath: m_Layer
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 5132121713341548055, guid: dbf02222d84080241a05092fd579b243, type: 3}
       propertyPath: owner
