@@ -91,6 +91,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b5646bc27ef81fd4d9a74357e83309e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  attackType: 1
+  playerattackType: 0
   CommonAttack: 10
   FallingAttack: 30

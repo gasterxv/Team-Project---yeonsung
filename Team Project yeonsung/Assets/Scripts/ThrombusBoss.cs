@@ -530,10 +530,7 @@ public class BossController : MonoBehaviour
     private void Walk()
     {
         // 점프하는 순간 바라보는 방향으로 속도 설정
-        body.linearVelocity = new Vector2(
-            facingDirection * jumpHorizontalSpeed,
-            jumpVerticalSpeed
-        );
+        body.linearVelocity = new Vector2(facingDirection * jumpHorizontalSpeed,jumpVerticalSpeed);
 
         isWalkJumping = true;
     }
