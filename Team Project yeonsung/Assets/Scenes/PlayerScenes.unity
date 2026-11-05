@@ -695,6 +695,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3c831df6824c1e9458f6c1d74651f720, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  damage: 10
   damageInterval: 1
 --- !u!61 &1657962328
 BoxCollider2D:
@@ -1098,6 +1099,34 @@ PrefabInstance:
     - target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
       propertyPath: heartSpacing
       value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+      propertyPath: showAttackBox
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+      propertyPath: moveAcceleration
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+      propertyPath: moveDeceleration
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+      propertyPath: specialFallSpeed
+      value: 25
+      objectReference: {fileID: 0}
+    - target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+      propertyPath: specialHoverTime
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+      propertyPath: specialDriftSpeed
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+      propertyPath: specialSlideDeceleration
+      value: 12
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

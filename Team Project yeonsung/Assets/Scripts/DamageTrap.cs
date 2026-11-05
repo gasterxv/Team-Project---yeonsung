@@ -1,10 +1,11 @@
 using UnityEngine;
 
-// 플레이어가 닿고 있는 동안 일정 간격으로 체력 한 칸을 없애는 함정
+// 플레이어가 닿고 있는 동안 일정 간격으로 대미지를 주는 함정
 public class DamageTrap : MonoBehaviour
 {
     [Header("함정 설정")]
-    public float damageInterval = 1f;   // 닿고 있을 때 체력 한 칸이 사라지는 간격(초)
+    public int damage = 10;             // 한 번에 주는 대미지
+    public float damageInterval = 1f;   // 닿고 있을 때 대미지를 주는 간격(초)
 
     private float nextDamageTime;
 
@@ -21,9 +22,9 @@ public class DamageTrap : MonoBehaviour
             return;
         }
 
-        player.TakeDamage();
+        player.TakeDamage(damage);
         nextDamageTime = Time.time + damageInterval;
-        Debug.Log("함정에 닿았어요! 체력 한 칸 사라짐");
+        Debug.Log("함정에 닿았어요! 대미지: " + damage);
     }
 
     // Scene 화면에서 함정 범위를 빨간 테두리로 보여줍니다.

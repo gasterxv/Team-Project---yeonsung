@@ -7,6 +7,9 @@ public class GameFlowManager : MonoBehaviour
 {
     public static GameFlowManager Instance { get; private set; }
 
+    // 플레이어가 체크포인트에서 부활한 직후에 한 번 실행되는 이벤트 (부서진 바닥 복구 등에 사용)
+    public static event System.Action OnPlayerRespawn;
+
     [Header("플레이어 부활 설정")]
     public GameObject playerPrefab;                     // 부활할 때 생성할 플레이어 프리팹
     public string checkPointTag = "CheckPoint";         // 체크포인트 태그
@@ -91,6 +94,9 @@ public class GameFlowManager : MonoBehaviour
         {
             Debug.LogError("GameFlowManager의 Player Prefab 칸이 비어 있어서 플레이어를 만들 수 없어요!");
         }
+
+        // 5-1) 부활 알림: 화면이 완전히 검은 상태에서 부서진 바닥 등을 되돌립니다.
+        OnPlayerRespawn?.Invoke();
 
         yield return new WaitForSeconds(blackHoldTime);
 

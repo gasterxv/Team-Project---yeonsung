@@ -55,11 +55,17 @@ public class PlayerController : MonoBehaviour
     public KeyCode specialKey = KeyCode.C;  // 특수공격 키
     public float specialCooldown = 5f;      // 쿨타임(초), 사용 시점부터 계산
     public int specialDamage = 3;           // 특수공격 대미지
-    public float specialHoverTime = 0.25f;  // 낙하 전에 공중에서 멈춰 있는 시간(초)
+    public float specialDriftTime = 0.1f;   // C를 누른 직후, 누르고 있는 이동 방향으로 천천히 움직이는 시간(초)
+    public float specialDriftSpeed = 2f;    // 그때의 이동 속도 (이동 속도보다 작게 하면 느리게 움직임)
+    public float specialHoverTime = 0.25f;  // 낙하 전에 공중에서 멈춰 있는 전체 시간(초) (이동 시간 포함)
     public float specialFallSpeed = 25f;    // 낙하 속도 (클수록 빠름)
     public float specialHitWidth = 0.3f;    // 히트박스 가로 (좁을수록 정중앙만 맞음)
     public float specialHitHeight = 0.6f;   // 히트박스 세로
     public float specialHitOffsetY = 0f;    // 히트박스 위아래 위치 보정 (+ 위로, - 아래로)
+
+    [Header("특수공격 관성 설정 (특수공격 딜레이 시간 동안만 적용)")]
+    public bool useSpecialInertia = true;        // 체크하면 이동 후 바로 멈추지 않고 미끄러지다 멈춤, 해제하면 바로 멈춤
+    public float specialSlideDeceleration = 12f; // 미끄러지는 속도가 줄어드는 정도 (작을수록 더 오래 미끄러짐)
 
     [Header("화면 표시 (확인용)")]
     public bool showCooldownUI = true;       // 화면 왼쪽 아래에 쿨타임 표시
@@ -74,7 +80,6 @@ public class PlayerController : MonoBehaviour
     private Collider2D col;
     private float moveInput;
     private bool isGrounded;
-    private int groundContacts;             // 지금 닿아 있는 땅(Ground 태그) 개수
     private bool isAttacking;
     private int facingDir = 1;              // 1 = 오른쪽, -1 = 왼쪽
     private float defaultGravity;           // 원래 중력 값 (사망 시 복구용)
@@ -246,13 +251,14 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 공격 중에는 좌우로 멈춥니다 (낙하 속도는 유지)
+        // 일반 공격 중에는 좌우로 바로 멈춥니다 (낙하 속도는 유지)
         if (isAttacking)
         {
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
             return;
         }
 
+        // 평소 좌우 이동: 누르면 바로 최대 속도, 떼면 바로 멈춤
         rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
 
         // 이동 방향에 따라 바라보는 방향 + 스프라이트 반전
@@ -610,10 +616,12 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        StartCoroutine(SpecialAttackRoutine());
+        // C를 누른 순간 누르고 있던 이동 방향(왼쪽 -1, 오른쪽 1, 없으면 0)을 넘겨줍니다.
+        StartCoroutine(SpecialAttackRoutine(moveInput));
     }
 
-    IEnumerator SpecialAttackRoutine()
+    // 특수공격 흐름: 공중에서 멈춤(처음 잠깐은 이동 방향으로 천천히 이동, 이후 관성으로 미끄러지며 멈춤) -> 최대 속도로 수직 낙하 -> 착지
+    IEnumerator SpecialAttackRoutine(float driftInput)
     {
         isSpecialAttacking = true;
         isSpecialInvincible = true;
@@ -625,13 +633,58 @@ public class PlayerController : MonoBehaviour
         float originalGravity = rb.gravityScale;
         CollisionDetectionMode2D originalMode = rb.collisionDetectionMode;
 
-        // 1) 공중에서 잠깐 멈춤
+        // 1) 공중에서 멈춤
         rb.gravityScale = 0f;
         rb.linearVelocity = Vector2.zero;
 
+        // 누르고 있던 이동 방향 (키를 안 누르고 있었다면 0 = 제자리)
+        float driftDir = 0f;
+        if (driftInput > 0.01f)
+        {
+            driftDir = 1f;
+        }
+        else if (driftInput < -0.01f)
+        {
+            driftDir = -1f;
+        }
+
+        if (driftDir != 0f)
+        {
+            facingDir = (int)driftDir;
+            spriteRenderer.flipX = (driftDir < 0f);
+            Debug.Log("특수공격 직후 이동 방향으로 천천히 이동!");
+        }
+
         // TODO: 애니메이션 작업 후 여기에 animator.SetTrigger("Special"); 추가 예정
 
-        yield return new WaitForSeconds(specialHoverTime);
+        float hoverEnd = Time.time + specialHoverTime;
+        float driftEnd = Time.time + Mathf.Min(specialDriftTime, specialHoverTime);
+
+        // 1-1) 처음 잠깐(Special Drift Time) 동안 이동 방향으로 천천히 이동
+        while (Time.time < driftEnd)
+        {
+            rb.linearVelocity = new Vector2(driftDir * specialDriftSpeed, 0f);
+            yield return new WaitForFixedUpdate();
+        }
+
+        // 1-2) 남은 공중 정지 시간: 관성을 쓰면 가던 속도가 서서히 줄며 미끄러지고, 아니면 바로 멈춤
+        float slideX = driftDir * specialDriftSpeed;
+        while (Time.time < hoverEnd)
+        {
+            if (useSpecialInertia)
+            {
+                slideX = Mathf.MoveTowards(slideX, 0f, specialSlideDeceleration * Time.fixedDeltaTime);
+            }
+            else
+            {
+                slideX = 0f;
+            }
+
+            rb.linearVelocity = new Vector2(slideX, 0f);
+            yield return new WaitForFixedUpdate();
+        }
+
+        rb.linearVelocity = Vector2.zero;
 
         // 2) 최대 속도로 수직 낙하 (착지할 때까지)
         isDiving = true;
@@ -787,7 +840,6 @@ public class PlayerController : MonoBehaviour
     {
         if (collision.gameObject.CompareTag("Ground"))
         {
-            groundContacts++;
             isGrounded = true;
             airDashUsed = false;
         }
@@ -806,13 +858,12 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // 닿아 있는 땅이 하나도 없을 때만 isGrounded를 false로 (땅 블록이 이어져 있어도 안전하게)
+    // 땅에서 떨어지면 isGrounded를 false로
     void OnCollisionExit2D(Collision2D collision)
     {
         if (collision.gameObject.CompareTag("Ground"))
         {
-            groundContacts = Mathf.Max(0, groundContacts - 1);
-            isGrounded = groundContacts > 0;
+            isGrounded = false;
         }
     }
 }

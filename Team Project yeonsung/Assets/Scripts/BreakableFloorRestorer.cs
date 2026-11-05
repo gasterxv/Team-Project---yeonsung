@@ -6,7 +6,6 @@ public sealed class BreakableFloorRestorer : MonoBehaviour
     [SerializeField] private GameObject brokenFloorPrefab;
     [SerializeField] private GameObject currentFloor;
     [SerializeField] private Transform restorePoint;
-    [SerializeField] private CheckPoint checkPoint;
 
     private Vector3 restorePosition;
     private Quaternion restoreRotation;
@@ -32,11 +31,8 @@ public sealed class BreakableFloorRestorer : MonoBehaviour
 
     private void Start()
     {
-        if (checkPoint == null)
-            checkPoint = FindFirstObjectByType<CheckPoint>();
-
-        if (checkPoint != null)
-            checkPoint.OnCheckPointUsed += Restore;
+        // 플레이어가 체크포인트에서 부활할 때마다 바닥을 복구합니다.
+        GameFlowManager.OnPlayerRespawn += Restore;
 
         if (currentFloor == null)
             Restore();
@@ -44,8 +40,7 @@ public sealed class BreakableFloorRestorer : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (checkPoint != null)
-            checkPoint.OnCheckPointUsed -= Restore;
+        GameFlowManager.OnPlayerRespawn -= Restore;
     }
 
     public void Restore()
