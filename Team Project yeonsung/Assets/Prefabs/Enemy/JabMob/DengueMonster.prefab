@@ -115,9 +115,9 @@ MonoBehaviour:
   recognitionSensor: {fileID: 1473976500014293510}
   attackRangeSensor: {fileID: 3565083628368622379}
   MonsterCurrentHP: 100
-  MonsterWalkSpeed: 2
+  MonsterWalkSpeed: 4
   MonsterAttackInterval: 2
-  MonsterAttackCooldown: 0
+  MonsterAttackCooldown: 3
   patrolWalkTime: 5
   patrolIdleTime: 3
   attackBoxPrefab: {fileID: 9199786445007790732, guid: d5018249a2c33414087a87b7194b2e34, type: 3}
