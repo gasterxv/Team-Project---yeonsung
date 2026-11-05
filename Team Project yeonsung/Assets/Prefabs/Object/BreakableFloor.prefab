@@ -12,9 +12,10 @@ GameObject:
   - component: {fileID: 1692246209616021875}
   - component: {fileID: 5915277916028744003}
   - component: {fileID: 7140308253414659078}
-  m_Layer: 8
+  - component: {fileID: 877413825983482211}
+  m_Layer: 10
   m_Name: BreakableFloor
-  m_TagString: Untagged
+  m_TagString: Ground
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -149,3 +150,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   brokenFloorHP: 2
   minimumDamageToBreak: 2
+--- !u!114 &877413825983482211
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5650725999403720212}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1146cab1cea80c4e8cb2fa88373a130, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  slamDamage: 3

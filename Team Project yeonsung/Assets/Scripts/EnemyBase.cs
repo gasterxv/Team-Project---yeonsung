@@ -143,6 +143,16 @@ public abstract class EnemyBase : MonoBehaviour
         Collider2D attackTarget = attackRangeSensor.PlayerCollider;
         Collider2D recognitionTarget = recognitionSensor.PlayerCollider;
 
+        if (Time.frameCount % 60 == 0)
+        {
+            Debug.Log(
+                $"[{name}] 인식대상={recognitionTarget}, " +
+                $"공격대상={attackTarget}, " +
+                $"현재상태={currentState}, 공격잠금={isAttackLocked}",
+                this
+            );
+        }
+
         // 인식 범위의 플레이어를 저장.
         // 공격 범위에서만 감지되는 경우에도 대응.
         targetCollider = recognitionTarget != null
@@ -378,6 +388,7 @@ public abstract class EnemyBase : MonoBehaviour
     }
 
     // 공격 애니메이션 마지막에 연결
+    /*
     public void OnAttackAnimationEnd()
     {
         if (currentState != MonsterState.Attack)
@@ -388,7 +399,21 @@ public abstract class EnemyBase : MonoBehaviour
         ChangeState(MonsterState.Idle);
         UpdateState();
     }
+    */
+    protected void EndAttack()
+    {
+        if (currentState != MonsterState.Attack)
+            return;
 
+        // 공격 잠금 해제
+        isAttackLocked = false;
+
+        // Idle로 전환하면서 기존 쿨타임 설정
+        ChangeState(MonsterState.Idle);
+
+        // 플레이어 위치에 맞춰 다음 행동 판단
+        UpdateState();
+    }
     // 피격 애니메이션 마지막에 연결
     public void OnDamageAnimationEnd()
     {

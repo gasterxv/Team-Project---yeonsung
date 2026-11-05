@@ -3033,7 +3033,7 @@ GameObject:
   - component: {fileID: 586552296}
   m_Layer: 0
   m_Name: "Map_\uC21C\uD658\uACC4"
-  m_TagString: Untagged
+  m_TagString: Ground
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -4907,7 +4907,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   checkPointSpot: 0
   activateOnTouch: 1
-  otherCheckPoints: []
 --- !u!61 &975249638
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -5722,6 +5721,63 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!1001 &1175339004
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 9.023901
+      objectReference: {fileID: 0}
+    - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.7402141
+      objectReference: {fileID: 0}
+    - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4104783086079301403, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_Name
+      value: ThrombusBoss
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
 --- !u!1 &1220034061
 GameObject:
   m_ObjectHideFlags: 0
@@ -6777,7 +6833,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   checkPointSpot: 0
   activateOnTouch: 1
-  otherCheckPoints: []
 --- !u!61 &1458667626
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -9027,7 +9082,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   checkPointSpot: 0
   activateOnTouch: 0
-  otherCheckPoints: []
 --- !u!61 &1836152934
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -11519,3 +11573,4 @@ SceneRoots:
   - {fileID: 586552296}
   - {fileID: 629586444}
   - {fileID: 568115559}
+  - {fileID: 1175339004}

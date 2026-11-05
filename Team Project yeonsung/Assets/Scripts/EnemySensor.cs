@@ -20,11 +20,7 @@ public class EnemySensor : MonoBehaviour
     {
         get
         {
-            playerColliders.RemoveWhere(collider =>
-                collider == null ||
-                !collider.enabled ||
-                !collider.gameObject.activeInHierarchy
-            );
+            playerColliders.RemoveWhere( collider =>collider == null || !collider.enabled || !collider.gameObject.activeInHierarchy );
 
             foreach (Collider2D collider in playerColliders)
             {
@@ -39,11 +35,15 @@ public class EnemySensor : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
+        Debug.Log($"[{name}] 접촉: {other.name}, 태그: {other.tag}, 센서: {sensorType}",this);
+
         if (sensorType == SensorType.PlayerRange)
         {
             if (other.CompareTag("Player"))
             {
                 playerColliders.Add(other);
+
+                Debug.Log($"[{name}] 플레이어 등록 성공", this);
             }
 
             return;
@@ -55,6 +55,7 @@ public class EnemySensor : MonoBehaviour
             owner.NotifyPlayerAttack(hitbox.GiveDamage());
         }
     }
+
 
     private void OnTriggerExit2D(Collider2D other)
     {
