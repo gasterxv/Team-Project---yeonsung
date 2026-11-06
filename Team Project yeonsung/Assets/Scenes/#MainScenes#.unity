@@ -3742,6 +3742,70 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!1001 &728819960
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4613786607753557273, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 12.04
+      objectReference: {fileID: 0}
+    - target: {fileID: 4613786607753557273, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.2665584
+      objectReference: {fileID: 0}
+    - target: {fileID: 4613786607753557273, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4613786607753557273, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4613786607753557273, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4613786607753557273, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4613786607753557273, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4613786607753557273, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4613786607753557273, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4613786607753557273, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5901260166413717918, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: m_Name
+      value: DengueMonster1_SpawnPoint
+      objectReference: {fileID: 0}
+    - target: {fileID: 7666050690346772687, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      propertyPath: player
+      value: 
+      objectReference: {fileID: 2001325885}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5901260166413717918, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1700099200}
+  m_SourcePrefab: {fileID: 100100000, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
 --- !u!1 &749549611
 GameObject:
   m_ObjectHideFlags: 0
@@ -6137,6 +6201,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: ThrombusBoss
       objectReference: {fileID: 0}
+    - target: {fileID: 4104783086079301403, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -8162,6 +8230,66 @@ SpriteRenderer:
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0
+--- !u!1 &1700099199 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5901260166413717918, guid: e7fd9c86ca9f7bc47b25d060184153a6, type: 3}
+  m_PrefabInstance: {fileID: 728819960}
+  m_PrefabAsset: {fileID: 0}
+--- !u!212 &1700099200
+SpriteRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1700099199}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 9dfc825aed78fcd4ba02077103263b40, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_Sprite: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 1, y: 1}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!1 &1706239201
@@ -10544,6 +10672,11 @@ CircleCollider2D:
   m_CorrespondingSourceObject: {fileID: 6862215085036484750, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
   m_PrefabInstance: {fileID: 629586444}
   m_PrefabAsset: {fileID: 0}
+--- !u!4 &2001325885 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1022246131664016688, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+  m_PrefabInstance: {fileID: 629586444}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &2025545505
 GameObject:
   m_ObjectHideFlags: 0
@@ -11512,3 +11645,4 @@ SceneRoots:
   - {fileID: 629586444}
   - {fileID: 568115559}
   - {fileID: 1291874131}
+  - {fileID: 728819960}

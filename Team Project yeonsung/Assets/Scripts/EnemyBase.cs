@@ -3,434 +3,392 @@
 [RequireComponent(typeof(Rigidbody2D))]
 public abstract class EnemyBase : MonoBehaviour
 {
-    public enum MonsterState
-    {
-        Idle,
-        Walk,
-        Attack,
-        Dead,
-        GetDamage
-    }
+    public enum MonsterState { Idle, Walk, Attack, Dead, GetDamage }
+    private enum BehaviorMode { Patrol, Chase, WaitBeforeReturn, ReturnHome }
 
     [Header("컴포넌트")]
     [SerializeField] protected Animator animator;
     [SerializeField] private Rigidbody2D body;
     [SerializeField] private Collider2D monsterBodyCollider;
     [SerializeField] private SpriteRenderer spriteRenderer;
-
-    // 원본 스프라이트가 오른쪽을 보고 있는지
     [SerializeField] private bool spriteFacesRight = true;
-    protected int FacingDirection => facingDirection;
 
     [Header("센서")]
     [SerializeField] private EnemySensor recognitionSensor;
     [SerializeField] private EnemySensor attackRangeSensor;
 
-    [Header("능력치")]
+    [Header("능력치: 플레이어 속도에 맞춰 인스펙터에서 조정")]
     [SerializeField] protected int MonsterCurrentHP = 100;
-    [SerializeField] protected float MonsterWalkSpeed = 2f;
+    [SerializeField, Min(0f)] protected float MonsterWalkSpeed = 6f;
+    [SerializeField, Min(0f)] private float chaseSpeed = 8f;
+    [SerializeField, Min(0f)] private float returnSpeed = 6f;
+    [SerializeField, Min(0f)] protected float MonsterAttackInterval = 2f;
+    [SerializeField] protected float MonsterAttackCooldown;
 
-    // 공격이 끝난 뒤 기다릴 시간 — 인스펙터에서 설정
-    [SerializeField] protected float MonsterAttackInterval = 2f;
+    [Header("최초 배치 위치 기준 순찰 및 복귀 (월드 단위)")]
+    [SerializeField, Min(0.1f)] private float patrolRadius = 3f;
+    [SerializeField, Min(0f)] private float patrolIdleTime = 2f;
+    [SerializeField, Min(0.1f)] private float maxChaseDistance = 10f;
+    [SerializeField, Min(0f)] private float waitBeforeReturn = 1f;
+    [SerializeField, Min(0.01f)] private float homeTolerance = 0.15f;
+    [SerializeField, Min(0.01f)] private float homeVerticalTolerance = 0.5f;
+    [SerializeField, Min(0.1f)] private float returnTimeout = 5f;
 
-    // 현재 남은 공격 쿨타임
-    [SerializeField] protected float MonsterAttackCooldown = 0f;
+    [Header("낭떠러지 감지 (사용 시 Ground Layers 필수)")]
+    [SerializeField] private bool avoidCliffs = true;
+    [SerializeField] private LayerMask groundLayers;
+    [SerializeField, Min(0.01f)] private float groundProbeAhead = 0.2f;
+    [SerializeField, Min(0.01f)] private float groundProbeDepth = 0.6f;
 
-    [Header("순찰")]
-    [SerializeField] private float patrolWalkTime = 5f;
-    [SerializeField] private float patrolIdleTime = 3f;
+    [Header("거리 디스폰: 재등장은 외부 스폰 관리자가 담당")]
+    [SerializeField] private bool enableDistanceDespawn;
+    [SerializeField] private Transform player;
+    [SerializeField] private Camera gameplayCamera;
+    [SerializeField] private bool useCameraWidth = true;
+    [Tooltip("1이면 플레이어 중심에서 좌우 각각 화면 전체 폭만큼 유지")]
+    [SerializeField, Min(0.1f)] private float screenWidthsEachSide = 1f;
+    [SerializeField, Min(0.1f)] private float fallbackHorizontalDistance = 25f;
+    [Tooltip("0이면 세로 거리로 디스폰하지 않음")]
+    [SerializeField, Min(0f)] private float verticalDespawnDistance;
 
     protected MonsterState currentState = MonsterState.Idle;
-
     public MonsterState CurrentState => currentState;
+    public float MaxChaseDistance => maxChaseDistance;
+    public bool IsDead => MonsterCurrentHP <= 0 || currentState == MonsterState.Dead;
+    public event System.Action<EnemyBase> Died;
+    protected int FacingDirection => facingDirection;
 
+    private bool spawnPointManaged;
+
+    // 스폰 관리자를 사용하는 몬스터는 카메라 기준으로 따로 디스폰하지 않는다.
+    public void UseSpawnPointManagement()
+    {
+        spawnPointManaged = true;
+    }
+
+    private BehaviorMode behavior;
+    private Vector2 homePosition;
     private Collider2D targetCollider;
-
     private bool isAttackLocked;
-    private bool isPatrolling;
-
-    // 0: 오른쪽 이동, 1: 대기, 2: 왼쪽 이동, 3: 대기
-    private int patrolStep;
-    private float patrolTimer;
-
-    // 오른쪽 1, 왼쪽 -1
     private int facingDirection = 1;
-
-    // 수평 이동 입력: -1, 0, 1
+    private int patrolDirection = 1;
     private float moveDirection;
+    private float behaviorTimer;
+    private float patrolIdleTimer;
+    private int initialHP;
 
     protected virtual void Awake()
     {
-        if (body == null)
-        {
-            body = GetComponent<Rigidbody2D>();
-        }
+        if (body == null) body = GetComponent<Rigidbody2D>();
+        if (monsterBodyCollider == null) monsterBodyCollider = GetComponent<Collider2D>();
+        initialHP = MonsterCurrentHP;
+        if (gameplayCamera == null) gameplayCamera = Camera.main;
     }
 
-    protected virtual void Start()
+    protected virtual void OnEnable()
     {
-        SetFacing(1);
+        // 씬 배치용. 풀링 시 위치 설정 후 InitializeSpawn()을 다시 호출한다.
+        InitializeSpawn(transform.position);
+    }
 
-        if (MonsterCurrentHP <= 0)
-        {
-            ChangeState(MonsterState.Dead);
-        }
-        else
-        {
-            OnStateChanged(currentState);
-        }
+    public void InitializeSpawn(Vector2 spawnPosition)
+    {
+        homePosition = spawnPosition;
+        body.position = spawnPosition;
+        body.linearVelocity = Vector2.zero;
+        MonsterCurrentHP = initialHP;
+        MonsterAttackCooldown = 0f;
+        targetCollider = null;
+        isAttackLocked = false;
+        moveDirection = 0f;
+        behavior = BehaviorMode.Patrol;
+        behaviorTimer = 0f;
+        patrolIdleTimer = patrolIdleTime;
+        patrolDirection = 1;
+        SetFacing(1);
+        currentState = initialHP > 0 ? MonsterState.Idle : MonsterState.Dead;
+        OnStateChanged(currentState);
+    }
+
+    protected virtual void OnDisable()
+    {
+        targetCollider = null;
+        isAttackLocked = false;
+        moveDirection = 0f;
+        if (body != null) body.linearVelocity = Vector2.zero;
     }
 
     protected virtual void Update()
     {
-        // 남은 쿨타임 감소
-        MonsterAttackCooldown = Mathf.Max(
-            0f,
-            MonsterAttackCooldown - Time.deltaTime
-        );
+        if (ShouldDespawn())
+        {
+            gameObject.SetActive(false);
+            return;
+        }
 
+        MonsterAttackCooldown = Mathf.Max(0f, MonsterAttackCooldown - Time.deltaTime);
         UpdateState();
-
         switch (currentState)
         {
-            case MonsterState.Idle:
-                Idle();
-                break;
-
-            case MonsterState.Walk:
-                Walk();
-                break;
-
-            case MonsterState.Attack:
-                Attack();
-                break;
-
-            case MonsterState.Dead:
-                Death();
-                break;
-
-            case MonsterState.GetDamage:
-                // 피격 종료 이벤트를 기다림
-                break;
+            case MonsterState.Idle: Idle(); break;
+            case MonsterState.Walk: Walk(); break;
+            case MonsterState.Attack: Attack(); break;
+            case MonsterState.Dead: Death(); break;
         }
     }
 
     protected virtual void FixedUpdate()
     {
-        // 걷기 상태에서만 수평 이동
-        float horizontalSpeed = currentState == MonsterState.Walk
-            ? moveDirection * MonsterWalkSpeed
-            : 0f;
+        float speed = behavior == BehaviorMode.Chase ? chaseSpeed
+            : behavior == BehaviorMode.ReturnHome ? returnSpeed : MonsterWalkSpeed;
+        float horizontal = currentState == MonsterState.Walk ? moveDirection * speed : 0f;
 
-        // 낙하·점프 등의 수직 속도는 유지
-        body.linearVelocity = new Vector2(
-            horizontalSpeed,
-            body.linearVelocity.y
-        );
+        // 목표를 지나쳐 좌우로 떨리는 현상을 방지한다.
+        if (currentState == MonsterState.Walk && behavior != BehaviorMode.Chase)
+        {
+            float goalX = behavior == BehaviorMode.ReturnHome ? homePosition.x
+                : homePosition.x + patrolDirection * patrolRadius;
+            horizontal = Mathf.Clamp((goalX - body.position.x) / Time.fixedDeltaTime, -speed, speed);
+        }
+
+        if (horizontal != 0f && !HasGroundAhead(Mathf.Sign(horizontal)))
+        {
+            horizontal = 0f;
+            if (behavior == BehaviorMode.Chase) BeginReturn();
+            else if (behavior == BehaviorMode.Patrol)
+            {
+                patrolDirection *= -1;
+                patrolIdleTimer = patrolIdleTime;
+                ChangeState(MonsterState.Idle);
+            }
+            // 복귀 중 길이 없으면 timeout 후 안전한 최초 위치로 재배치한다.
+        }
+        body.linearVelocity = new Vector2(horizontal, body.linearVelocity.y);
     }
 
     protected virtual void UpdateState()
     {
-        if (currentState == MonsterState.Dead)
-            return;
+        if (currentState == MonsterState.Dead) return;
+        if (MonsterCurrentHP <= 0) { ChangeState(MonsterState.Dead); return; }
 
-        if (MonsterCurrentHP <= 0)
+        // 공격 중이어도 귀환 거리 제한은 우선 적용한다.
+        if (behavior == BehaviorMode.Chase &&
+            Vector2.Distance(body.position, homePosition) >= maxChaseDistance)
         {
-            ChangeState(MonsterState.Dead);
-            return;
-        }
-
-        Collider2D attackTarget = attackRangeSensor.PlayerCollider;
-        Collider2D recognitionTarget = recognitionSensor.PlayerCollider;
-
-        if (Time.frameCount % 60 == 0)
-        {
-            Debug.Log(
-                $"[{name}] 인식대상={recognitionTarget}, " +
-                $"공격대상={attackTarget}, " +
-                $"현재상태={currentState}, 공격잠금={isAttackLocked}",
-                this
-            );
-        }
-
-        // 인식 범위의 플레이어를 저장.
-        // 공격 범위에서만 감지되는 경우에도 대응.
-        targetCollider = recognitionTarget != null
-            ? recognitionTarget
-            : attackTarget;
-
-        if (targetCollider != null)
-        {
-            // 플레이어를 발견하면 순찰 중단
-            isPatrolling = false;
-        }
-
-        // 공격 중에는 이동과 방향 전환을 하지 않음
-        if (isAttackLocked)
-        {
-            StopHorizontalMovement();
+            BeginReturn();
             return;
         }
 
-        if (targetCollider != null)
-        {
-            UpdateFacingToTarget();
-
-            if (attackTarget != null)
-            {
-                StopHorizontalMovement();
-
-                ChangeState(
-                    MonsterAttackCooldown <= 0f
-                        ? MonsterState.Attack
-                        : MonsterState.Idle
-                );
-            }
-            else
-            {
-                float differenceX =
-                    targetCollider.bounds.center.x -
-                    monsterBodyCollider.bounds.center.x;
-
-                moveDirection = differenceX > 0f
-                    ? 1f
-                    : differenceX < 0f ? -1f : 0f;
-
-                ChangeState(MonsterState.Walk);
-            }
-
-            return;
-        }
-
-        // 플레이어가 없을 때 피격 동작을 순찰로 덮어쓰지 않음
+        // 플레이어 감지 여부와 관계없이 피격 애니메이션을 유지한다.
         if (currentState == MonsterState.GetDamage)
         {
             StopHorizontalMovement();
             return;
         }
 
-        UpdatePatrol();
+        // 이 두 단계에서는 센서에 플레이어가 있어도 재추적하지 않는다.
+        if (behavior == BehaviorMode.WaitBeforeReturn || behavior == BehaviorMode.ReturnHome)
+        {
+            UpdateReturn();
+            return;
+        }
+
+        Collider2D attackTarget = ReadTarget(attackRangeSensor);
+        targetCollider = ReadTarget(recognitionSensor);
+        if (targetCollider == null) targetCollider = attackTarget;
+
+        if (targetCollider == null)
+        {
+            if (behavior == BehaviorMode.Chase) BeginReturn();
+            else UpdatePatrol();
+            return;
+        }
+
+        // 순찰 위치가 제한 거리 밖인 설정에서도 추적 진입을 차단한다.
+        if (Vector2.Distance(body.position, homePosition) >= maxChaseDistance)
+        {
+            BeginReturn();
+            return;
+        }
+
+        behavior = BehaviorMode.Chase;
+        if (isAttackLocked) { StopHorizontalMovement(); return; }
+        float centerX = monsterBodyCollider != null ? monsterBodyCollider.bounds.center.x : body.position.x;
+        float differenceX = targetCollider.bounds.center.x - centerX;
+        if (Mathf.Abs(differenceX) > 0.01f) SetFacing(differenceX > 0f ? 1 : -1);
+
+        if (attackTarget != null)
+        {
+            StopHorizontalMovement();
+            ChangeState(MonsterAttackCooldown <= 0f ? MonsterState.Attack : MonsterState.Idle);
+        }
+        else
+        {
+            moveDirection = Mathf.Abs(differenceX) <= 0.05f ? 0f : Mathf.Sign(differenceX);
+            ChangeState(MonsterState.Walk);
+        }
     }
 
-    private void UpdateFacingToTarget()
+    private static Collider2D ReadTarget(EnemySensor sensor)
     {
-        float differenceX =
-            targetCollider.bounds.center.x -
-            monsterBodyCollider.bounds.center.x;
+        Collider2D candidate = sensor != null ? sensor.PlayerCollider : null;
+        return candidate != null && candidate.enabled && candidate.gameObject.activeInHierarchy
+            ? candidate : null;
+    }
 
-        if (differenceX > 0f)
+    private void BeginReturn()
+    {
+        targetCollider = null;
+        behavior = BehaviorMode.WaitBeforeReturn;
+        behaviorTimer = waitBeforeReturn;
+        isAttackLocked = false;
+        StopHorizontalMovement();
+        ChangeState(MonsterState.Idle);
+    }
+
+    private void UpdateReturn()
+    {
+        if (behavior == BehaviorMode.WaitBeforeReturn)
         {
-            SetFacing(1);
-        }
-        else if (differenceX < 0f)
-        {
-            SetFacing(-1);
+            StopHorizontalMovement();
+            behaviorTimer -= Time.deltaTime;
+            if (behaviorTimer <= 0f)
+            {
+                behavior = BehaviorMode.ReturnHome;
+                behaviorTimer = returnTimeout;
+            }
+            return;
         }
 
-        // 같은 X좌표이면 기존 방향 유지
+        behaviorTimer -= Time.deltaTime;
+        Vector2 offset = homePosition - body.position;
+        bool arrived = Mathf.Abs(offset.x) <= homeTolerance &&
+            Mathf.Abs(offset.y) <= homeVerticalTolerance;
+        if (arrived || behaviorTimer <= 0f)
+        {
+            if (!arrived)
+            {
+                body.position = homePosition;
+                body.linearVelocity = Vector2.zero;
+            }
+            behavior = BehaviorMode.Patrol;
+            patrolDirection = 1;
+            patrolIdleTimer = patrolIdleTime;
+            StopHorizontalMovement();
+            ChangeState(MonsterState.Idle);
+            return;
+        }
+
+        moveDirection = Mathf.Abs(offset.x) <= homeTolerance ? 0f : Mathf.Sign(offset.x);
+        if (moveDirection != 0f) SetFacing((int)moveDirection);
+        ChangeState(moveDirection == 0f ? MonsterState.Idle : MonsterState.Walk);
+    }
+
+    private void UpdatePatrol()
+    {
+        if (patrolIdleTimer > 0f)
+        {
+            patrolIdleTimer -= Time.deltaTime;
+            StopHorizontalMovement();
+            ChangeState(MonsterState.Idle);
+            return;
+        }
+
+        float goalX = homePosition.x + patrolDirection * patrolRadius;
+        float offset = goalX - body.position.x;
+        if (Mathf.Abs(offset) <= homeTolerance)
+        {
+            patrolDirection *= -1;
+            patrolIdleTimer = patrolIdleTime;
+            StopHorizontalMovement();
+            ChangeState(MonsterState.Idle);
+            return;
+        }
+        moveDirection = Mathf.Sign(offset);
+        SetFacing((int)moveDirection);
+        ChangeState(MonsterState.Walk);
+    }
+
+    private bool HasGroundAhead(float direction)
+    {
+        if (!avoidCliffs || groundLayers.value == 0 || monsterBodyCollider == null) return true;
+        Bounds bounds = monsterBodyCollider.bounds;
+        Vector2 origin = new Vector2(bounds.center.x + direction * (bounds.extents.x + groundProbeAhead),
+            bounds.min.y + 0.1f);
+        return Physics2D.Raycast(origin, Vector2.down, groundProbeDepth + 0.1f, groundLayers).collider != null;
+    }
+
+    private bool ShouldDespawn()
+    {
+        if (spawnPointManaged || !enableDistanceDespawn || player == null) return false;
+        float range = fallbackHorizontalDistance;
+        if (useCameraWidth && gameplayCamera != null && gameplayCamera.orthographic)
+            range = 2f * gameplayCamera.orthographicSize * gameplayCamera.aspect * screenWidthsEachSide;
+        Vector2 offset = (Vector2)player.position - body.position;
+        return Mathf.Abs(offset.x) > range ||
+            (verticalDespawnDistance > 0f && Mathf.Abs(offset.y) > verticalDespawnDistance);
     }
 
     private void SetFacing(int direction)
     {
         facingDirection = direction;
-
-        bool facingLeft = facingDirection < 0;
-
-        spriteRenderer.flipX = spriteFacesRight
-            ? facingLeft
-            : !facingLeft;
-    }
-
-    private void UpdatePatrol()
-    {
-        if (!isPatrolling)
-        {
-            // 플레이어를 놓친 뒤에는 순찰을 처음부터 시작
-            isPatrolling = true;
-            patrolStep = 0;
-            patrolTimer = patrolWalkTime;
-        }
-        else
-        {
-            patrolTimer -= Time.deltaTime;
-
-            if (patrolTimer <= 0f)
-            {
-                patrolStep = (patrolStep + 1) % 4;
-
-                patrolTimer = patrolStep == 0 || patrolStep == 2
-                    ? patrolWalkTime
-                    : patrolIdleTime;
-            }
-        }
-
-        switch (patrolStep)
-        {
-            case 0:
-                moveDirection = 1f;
-                SetFacing(1);
-                ChangeState(MonsterState.Walk);
-                break;
-
-            case 1:
-            case 3:
-                StopHorizontalMovement();
-                ChangeState(MonsterState.Idle);
-                break;
-
-            case 2:
-                moveDirection = -1f;
-                SetFacing(-1);
-                ChangeState(MonsterState.Walk);
-                break;
-        }
+        if (spriteRenderer != null)
+            spriteRenderer.flipX = spriteFacesRight ? direction < 0 : direction > 0;
     }
 
     private void StopHorizontalMovement()
     {
         moveDirection = 0f;
-
-        body.linearVelocity = new Vector2(
-            0f,
-            body.linearVelocity.y
-        );
+        body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
     }
 
     public void ChangeState(MonsterState nextState)
     {
-        if (currentState == MonsterState.Dead)
-            return;
-
-        // 사망은 다른 전환 제한보다 우선
-        if (MonsterCurrentHP <= 0)
-            nextState = MonsterState.Dead;
-
-        // 공격이 끝나기 전에는 사망 외 상태 전환 차단
-        if (isAttackLocked && nextState != MonsterState.Dead)
-            return;
-
-        if (currentState == nextState)
-            return;
-
-        // 쿨타임이 남아 있으면 공격 진입 차단
-        if (nextState == MonsterState.Attack &&
-            MonsterAttackCooldown > 0f)
-        {
-            return;
-        }
-
-        // 공격 상태에서 벗어나는 순간 쿨타임 시작
-        if (currentState == MonsterState.Attack)
-        {
-            MonsterAttackCooldown = MonsterAttackInterval;
-        }
-
+        if (currentState == MonsterState.Dead) return;
+        if (MonsterCurrentHP <= 0) nextState = MonsterState.Dead;
+        if (isAttackLocked && nextState != MonsterState.Dead) return;
+        if (currentState == nextState) return;
+        if (nextState == MonsterState.Attack && MonsterAttackCooldown > 0f) return;
+        if (currentState == MonsterState.Attack) MonsterAttackCooldown = MonsterAttackInterval;
         currentState = nextState;
         isAttackLocked = nextState == MonsterState.Attack;
-
-        if (nextState != MonsterState.Walk)
-        {
-            StopHorizontalMovement();
-        }
-
-        if (nextState == MonsterState.Dead)
-        {
-            isPatrolling = false;
-        }
-
+        if (nextState != MonsterState.Walk) StopHorizontalMovement();
         OnStateChanged(nextState);
+        if (nextState == MonsterState.Dead) Died?.Invoke(this);
     }
 
     protected virtual void OnStateChanged(MonsterState newState)
     {
-        switch (newState)
-        {
-            case MonsterState.Idle:
-                animator.Play("Base Layer.Idle", 0, 0f);
-                break;
-
-            case MonsterState.Walk:
-                animator.Play("Base Layer.Walk", 0, 0f);
-                break;
-
-            case MonsterState.Attack:
-                animator.Play("Base Layer.Attack", 0, 0f);
-                break;
-
-            case MonsterState.GetDamage:
-                animator.Play("Base Layer.GetDamage", 0, 0f);
-                break;
-
-            case MonsterState.Dead:
-                animator.Play("Base Layer.Death", 0, 0f);
-                break;
-        }
+        if (animator == null) return;
+        string animationName = newState == MonsterState.Dead ? "Death" : newState.ToString();
+        animator.Play("Base Layer." + animationName, 0, 0f);
     }
 
     public void NotifyPlayerAttack(int damageValue)
     {
-        if (currentState == MonsterState.Dead)
-            return;
-
-        if (MonsterCurrentHP <= 0)
-        {
-            ChangeState(MonsterState.Dead);
-            return;
-        }
-
-        GetDamage(damageValue);
-
-        ChangeState(
-            MonsterCurrentHP <= 0
-                ? MonsterState.Dead
-                : MonsterState.GetDamage
-        );
+        if (currentState == MonsterState.Dead) return;
+        GetDamage(Mathf.Max(0, damageValue));
+        ChangeState(MonsterCurrentHP <= 0 ? MonsterState.Dead : MonsterState.GetDamage);
     }
 
-    // 공격 애니메이션 마지막에 연결
-    /*
-    public void OnAttackAnimationEnd()
-    {
-        if (currentState != MonsterState.Attack)
-            return;
-
-        isAttackLocked = false;
-
-        ChangeState(MonsterState.Idle);
-        UpdateState();
-    }
-    */
     protected void EndAttack()
     {
-        if (currentState != MonsterState.Attack)
-            return;
-
-        // 공격 잠금 해제
+        if (currentState != MonsterState.Attack) return;
         isAttackLocked = false;
-
-        // Idle로 전환하면서 기존 쿨타임 설정
         ChangeState(MonsterState.Idle);
-
-        // 플레이어 위치에 맞춰 다음 행동 판단
         UpdateState();
     }
-    // 피격 애니메이션 마지막에 연결
+
     public void OnDamageAnimationEnd()
     {
-        if (currentState != MonsterState.GetDamage)
-            return;
-
+        if (currentState != MonsterState.GetDamage) return;
         ChangeState(MonsterState.Idle);
         UpdateState();
     }
 
-    // 사망 애니메이션 마지막에 연결
     public void OnDeathAnimationEnd()
     {
-        if (currentState == MonsterState.Dead)
-        {
-            gameObject.SetActive(false);
-        }
+        if (currentState == MonsterState.Dead) gameObject.SetActive(false);
     }
 
     protected virtual void GetDamage(int damageValue) { }

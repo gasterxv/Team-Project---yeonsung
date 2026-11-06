@@ -114,16 +114,37 @@ MonoBehaviour:
   spriteFacesRight: 1
   recognitionSensor: {fileID: 1473976500014293510}
   attackRangeSensor: {fileID: 3565083628368622379}
-  MonsterCurrentHP: 100
+  MonsterCurrentHP: 1
   MonsterWalkSpeed: 4
+  chaseSpeed: 8
+  returnSpeed: 6
   MonsterAttackInterval: 2
   MonsterAttackCooldown: 3
-  patrolWalkTime: 5
+  patrolRadius: 3
   patrolIdleTime: 3
+  maxChaseDistance: 10
+  waitBeforeReturn: 1
+  homeTolerance: 0.15
+  homeVerticalTolerance: 0.5
+  returnTimeout: 5
+  avoidCliffs: 1
+  groundLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  groundProbeAhead: 0.2
+  groundProbeDepth: 0.6
+  enableDistanceDespawn: 1
+  player: {fileID: 1022246131664016688, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+  gameplayCamera: {fileID: 0}
+  useCameraWidth: 1
+  screenWidthsEachSide: 1
+  fallbackHorizontalDistance: 25
+  verticalDespawnDistance: 0
   attackBoxPrefab: {fileID: 9199786445007790732, guid: d5018249a2c33414087a87b7194b2e34, type: 3}
   attackSpawnPoint: {fileID: 3971888258885223652}
   attackBoxSpawnDelay: 0.5
   attackBoxLifetime: 0.2
+  attackDuration: 3
 --- !u!50 &3492859720984353035
 Rigidbody2D:
   serializedVersion: 5
