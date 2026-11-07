@@ -35,25 +35,51 @@ public class EnemySensor : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        Debug.Log($"[{name}] 접촉: {other.name}, 태그: {other.tag}, 센서: {sensorType}",this);
+        Debug.Log(
+            $"[{name}] 접촉: {other.name}, " +
+            $"태그: {other.tag}, 센서: {sensorType}",
+            this
+        );
 
         if (sensorType == SensorType.PlayerRange)
         {
             if (other.CompareTag("Player"))
-            {
                 playerColliders.Add(other);
-
-                Debug.Log($"[{name}] 플레이어 등록 성공", this);
-            }
 
             return;
         }
 
-        if (other.CompareTag(playerAttackTag) &&
-            other.TryGetComponent<PlayerHitbox>(out var hitbox))
+        if (!other.CompareTag(playerAttackTag))
         {
-            owner.NotifyPlayerAttack(hitbox.GiveDamage());
+            Debug.Log($"[{name}] 공격 태그 불일치: {other.tag}", this);
+            return;
         }
+
+        if (!other.TryGetComponent<PlayerHitbox>(out var hitbox))
+        {
+            Debug.LogWarning(
+                $"[{name}] {other.name}에 PlayerHitbox가 없습니다. " +
+                "공격 Collider와 같은 오브젝트에 있는지 확인하세요.",
+                other
+            );
+            return;
+        }
+
+        if (owner == null)
+        {
+            Debug.LogError($"[{name}] Hurtbox의 Owner가 비어 있습니다.", this);
+            return;
+        }
+
+        int damage = hitbox.GiveDamage();
+
+        Debug.Log(
+            $"[{name}] 데미지 전달 → {owner.name}, " +
+            $"데미지: {damage}, 상태: {owner.CurrentState}",
+            this
+        );
+
+        owner.NotifyPlayerAttack(damage);
     }
 
 

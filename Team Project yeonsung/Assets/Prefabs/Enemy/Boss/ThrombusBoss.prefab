@@ -36,6 +36,7 @@ Transform:
   - {fileID: 3477022294486813831}
   - {fileID: 6308310333000387170}
   - {fileID: 3599188482427809670}
+  - {fileID: 1116409742086371096}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!50 &2894688466147683177
@@ -64,7 +65,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!114 &943302706770889981
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -77,6 +78,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e6eda0f790036b34a922c08bcbc6d8b7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  terrainForceLayers:
+    serializedVersion: 2
+    m_Bits: 0
   enableDebugKeys: 1
   bossBodyCollider: {fileID: 825475860317742412, guid: dbf02222d84080241a05092fd579b243, type: 3}
   playerBodyCollider: {fileID: 6862215085036484750, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
@@ -104,6 +108,9 @@ MonoBehaviour:
   jumpHorizontalSpeed: 3
   jumpVerticalSpeed: 7
   jumpWaitTime: 0.5
+  roarDuration: 3
+  isSpriteChange: 0
+  deathSpritePath: "\uBAAC\uC2A4\uD130/\uBCF4\uC2A4/\uBCF4\uC2A4\uC0AC\uB9DD"
   onPlayerContactDamage:
     m_PersistentCalls:
       m_Calls:
@@ -156,6 +163,92 @@ CapsuleCollider2D:
   m_Offset: {x: 0.00016812088, y: -0.0000021100248}
   m_Size: {x: 0.20059614, y: 0.14270665}
   m_Direction: 1
+--- !u!1001 &358052350613396025
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1653050023850310939}
+    m_Modifications:
+    - target: {fileID: 830428188274978081, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 830428188274978081, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 830428188274978081, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 830428188274978081, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 830428188274978081, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 830428188274978081, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 830428188274978081, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 830428188274978081, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 830428188274978081, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 830428188274978081, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1696845708322318233, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_Name
+      value: BossHitBox
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523847721943952788, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_Size.x
+      value: 0.19554211
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523847721943952788, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_Size.y
+      value: 0.13749477
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523847721943952788, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_Offset.x
+      value: -0.00000050653915
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523847721943952788, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_Offset.y
+      value: 0.00084244023
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523847721943952788, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_Direction
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7034669504085378918, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: owner
+      value: 
+      objectReference: {fileID: 943302706770889981}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+--- !u!4 &1116409742086371096 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 830428188274978081, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+  m_PrefabInstance: {fileID: 358052350613396025}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &2099063871533534043
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -457,7 +550,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2178335216458541225, guid: dbf02222d84080241a05092fd579b243, type: 3}
       propertyPath: m_Name
-      value: ThrombusBoosHitBox
+      value: ThrombusBoosHitBox1
       objectReference: {fileID: 0}
     - target: {fileID: 2178335216458541225, guid: dbf02222d84080241a05092fd579b243, type: 3}
       propertyPath: m_Layer

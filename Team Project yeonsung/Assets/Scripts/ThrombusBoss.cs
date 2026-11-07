@@ -13,6 +13,9 @@ public class BossController : MonoBehaviour
         Death
     }
 
+    [Header("물리 충돌")]
+    [SerializeField] private LayerMask terrainForceLayers;
+
     [Header("테스트")]
     [SerializeField] private bool enableDebugKeys = true;
     
@@ -26,6 +29,7 @@ public class BossController : MonoBehaviour
     [Header("센서")]
     [SerializeField] private BossSensor pattern1Sensor;
     [SerializeField] private BossSensor bodySensor;
+    private bool hasStartedCombat;
 
     [Header("HP")]
     [SerializeField, Min(1)] private int maxHP = 200;
@@ -61,6 +65,19 @@ public class BossController : MonoBehaviour
     [SerializeField, Min(0.1f)] private float jumpVerticalSpeed = 7f;
     [SerializeField, Min(0f)] private float jumpWaitTime = 0.5f;
 
+    [Header("포효")]
+    [SerializeField, Min(0f)] private float roarDuration = 3f;
+
+    [Header("사망 이미지")]
+    [SerializeField] private bool isSpriteChange = false;
+
+    // Resources 폴더를 기준으로 한 경로. 확장자는 제외합니다.
+    [SerializeField] private string deathSpritePath = "몬스터/보스/보스사망";
+
+    private float nextJumpDebugTime;
+
+    public bool IsSpriteChange => isSpriteChange;
+
     private bool isWalkJumping;
     private float jumpWaitRemaining;
 
@@ -83,8 +100,66 @@ public class BossController : MonoBehaviour
         {
             body = GetComponent<Rigidbody2D>();
         }
-    }
 
+        if (body == null)
+        {
+            Debug.LogError("보스에 Rigidbody2D가 필요합니다.", this);
+            return;
+        }
+
+        // 현재 각도를 유지하고 물리 회전을 방지
+        body.constraints |= RigidbodyConstraints2D.FreezeRotation;
+        body.angularVelocity = 0f;
+
+        // 보스 Rigidbody2D에 연결된 콜라이더에 적용
+        foreach (Collider2D collider in
+                 body.GetComponentsInChildren<Collider2D>(true))
+        {
+            // 별도의 Rigidbody2D를 가진 자식은 제외
+            if (collider.attachedRigidbody != body)
+                continue;
+
+            
+        }
+    }
+    private void LogJumpStatus()
+    {
+        if (Time.time < nextJumpDebugTime)
+            return;
+
+        nextJumpDebugTime = Time.time + 1f;
+
+        if (body == null || groundCheck == null)
+        {
+            Debug.LogWarning(
+                $"[점프 확인] 상태={currentState}, " +
+                $"Body 연결={body != null}, " +
+                $"Ground Check 연결={groundCheck != null}",
+                this
+            );
+            return;
+        }
+
+        Collider2D ground = Physics2D.OverlapCircle(
+            groundCheck.position,
+            groundCheckRadius,
+            groundLayer
+        );
+
+        string groundName = ground != null ? ground.name : "없음";
+
+        Debug.Log(
+            $"[점프 확인] 상태={currentState}, " +
+            $"바닥={groundName}, " +
+            $"점프중={isWalkJumping}, " +
+            $"Y속도={body.linearVelocity.y:F3}, " +
+            $"대기={jumpWaitRemaining:F2}, " +
+            $"물리타입={body.bodyType}, " +
+            $"Simulated={body.simulated}, " +
+            $"고정={body.constraints}",
+            this
+        );
+    }
     private void Start()
     {
         currentHP = Mathf.Clamp(currentHP, 0, maxHP);
@@ -106,11 +181,6 @@ public class BossController : MonoBehaviour
 
     private void Update()
     {
-
-        // 테스트 키로 상태를 바꾼 프레임에는 일반 판단을 건너뜀
-        if (enableDebugKeys && HandleDebugKeys())
-            return;
-
         if (currentState == BossState.Death)
             return;
 
@@ -120,10 +190,11 @@ public class BossController : MonoBehaviour
             return;
         }
 
-        UpdateCooldowns();
-        UpdateFacing();
+        if (enableDebugKeys && HandleDebugKeys())
+            return;
 
-        // 다음 패턴 선택은 Walk 점프 착지 시 처리
+        UpdateCooldowns();
+        
     }
     private void StartPattern1Jump()
     {
@@ -169,17 +240,23 @@ public class BossController : MonoBehaviour
         );
 
         // 기존 종료 함수가 쿨타임 설정과 Walk 복귀를 처리
+        UpdateFacing();
         OnPattern1End();
     }
     private void FixedUpdate()
     {
+        
+
         if (currentState == BossState.Death || currentHP <= 0)
         {
             wasTouchingPlayer = false;
             return;
         }
+        UpdateFacing();
+        LogJumpStatus(); // 추가
         CheckPattern1Landing();
         UpdateWalkJump();
+        
         if (currentState == BossState.Death ||
             currentHP <= 0 ||
             bossBodyCollider == null ||
@@ -233,7 +310,29 @@ public class BossController : MonoBehaviour
 
     private void UpdateFacing()
     {
-        if (playerBodyCollider == null || bossBodyCollider == null)
+        if (body == null ||
+            groundCheck == null ||
+            playerBodyCollider == null ||
+            bossBodyCollider == null)
+        {
+            return;
+        }
+
+        // 점프가 진행 중이면 방향을 바꾸지 않음
+        if (isWalkJumping || isPattern1Jumping)
+            return;
+
+        // 바닥 근처를 지나가는 공중 상태도 제외
+        if (Mathf.Abs(body.linearVelocity.y) > 0.1f)
+            return;
+
+        bool isGrounded = Physics2D.OverlapCircle(
+            groundCheck.position,
+            groundCheckRadius,
+            groundLayer
+        ) != null;
+
+        if (!isGrounded)
             return;
 
         float differenceX =
@@ -241,15 +340,11 @@ public class BossController : MonoBehaviour
             bossBodyCollider.bounds.center.x;
 
         if (differenceX > 0f)
-        {
             SetFacing(1);
-        }
         else if (differenceX < 0f)
-        {
             SetFacing(-1);
-        }
 
-        // 같은 X좌표이면 기존 방향 유지
+        // X좌표가 같으면 기존 방향 유지
     }
 
     private void SetFacing(int direction)
@@ -292,47 +387,84 @@ public class BossController : MonoBehaviour
         // 조건을 만족하지 않으면 Walk 유지
     }
 
+    public void NotifyPlayerAttack(int damageValue)
+    {
+        Damaged(damageValue);
+    }
+
     public void Damaged(int damageValue)
     {
         if (currentState == BossState.Death || damageValue <= 0)
             return;
 
-        currentHP = Mathf.Max(0, currentHP - damageValue);
+        Debug.Log("피격 받았다", this); // 추가
 
-        // 세 번째 피해와 사망이 동시에 발생하면 사망 우선
         if (currentHP <= 0)
         {
             ChangeState(BossState.Death);
             return;
         }
 
+        // 대기 중에는 HP를 깎지 않고 피격 횟수만 기록
         if (currentState == BossState.Waiting)
         {
             waitingHitCount++;
+
+            Debug.Log(
+                $"보스 대기 중 피격: {waitingHitCount}/{hitsRequiredToStart}, " +
+                $"받은 피해량: {damageValue}",
+                this
+            );
 
             if (waitingHitCount >= hitsRequiredToStart)
             {
                 ChangeState(BossState.Roar);
             }
+
+            return;
         }
 
-        // 전투 중 피해를 받아도 별도의 피격 상태로 바꾸지 않음.
-        // Pattern3 조건은 다음 패턴 선택 시 평가.
+        // Roar를 포함한 전투 중에는 실제 HP 감소
+        currentHP = Mathf.Max(0, currentHP - damageValue);
+
+        Debug.Log(
+            $"보스 피해: {damageValue}, 남은 HP: {currentHP}",
+            this
+        );
+
+        if (currentHP <= 0)
+        {
+            ChangeState(BossState.Death);
+        }
     }
 
+    public void TakeDamage(int damageValue)
+    {
+        NotifyPlayerAttack(damageValue);
+
+    }
     private void ChangeState(BossState nextState)
     {
         if (currentState == BossState.Death)
             return;
 
+        // 사망을 다른 제한보다 먼저 판단
         if (currentHP <= 0)
             nextState = BossState.Death;
+
+        // 전투 시작 후 Waiting·Roar 재진입 금지
+        if (hasStartedCombat &&
+            (nextState == BossState.Waiting ||
+             nextState == BossState.Roar))
+        {
+            return;
+        }
 
         if (currentState == nextState)
             return;
 
-        // 실행 중인 패턴은 사망 외의 일반 전환을 차단.
-        // 정상 종료는 FinishPattern()을 사용.
+        // 패턴 실행 중에는 사망 외 일반 상태 전환 차단
+        // 정상적인 패턴 종료는 FinishPattern()에서 처리
         if (IsPattern(currentState) &&
             nextState != BossState.Death)
         {
@@ -383,8 +515,13 @@ public class BossController : MonoBehaviour
                 break;
 
             case BossState.Roar:
-                // 포효 애니메이션 시작
+                hasStartedCombat = true;
+
+                CancelInvoke(nameof(OnRoarEnd));
+                Invoke(nameof(OnRoarEnd), roarDuration);
                 break;
+
+
 
             case BossState.Walk:
                 // 걷기 애니메이션 시작
@@ -404,20 +541,72 @@ public class BossController : MonoBehaviour
                 break;
 
             case BossState.Death:
-                isWalkJumping = false;
-                isPattern1Jumping = false;
-                jumpWaitRemaining = 0f;
-
-                if (body != null)
-                {
-                    // 수평 이동을 멈추고, 공중에서는 중력으로 떨어지도록 유지
-                    body.linearVelocity =
-                        new Vector2(0f, body.linearVelocity.y);
-                }
-
-                // 추후 사망 애니메이션 연결
+                EnterDeath();
                 break;
         }
+    }
+
+    private void EnterDeath()
+    {
+        // 행동 기록 정리
+        isWalkJumping = false;
+        isPattern1Jumping = false;
+        jumpWaitRemaining = 0f;
+        wasTouchingPlayer = false;
+
+        // 사망 위치에 정지
+        if (body != null)
+        {
+            body.linearVelocity = Vector2.zero;
+            body.angularVelocity = 0f;
+            body.constraints = RigidbodyConstraints2D.FreezeAll;
+        }
+
+        // 이 스크립트와 같은 오브젝트에 있는 콜라이더
+        foreach (Collider2D collider in GetComponents<Collider2D>())
+        {
+            collider.isTrigger = true;
+        }
+
+        // 몸 콜라이더가 자식 오브젝트에 있어도 처리
+        if (bossBodyCollider != null)
+        {
+            bossBodyCollider.isTrigger = true;
+        }
+
+        // 스프라이트 변경 상태를 켜고 이미지 교체
+        isSpriteChange = true;
+        ApplyDeathSprite();
+    }
+
+    private void ApplyDeathSprite()
+    {
+        if (!isSpriteChange)
+            return;
+
+        if (spriteRenderer == null)
+        {
+            Debug.LogError(
+                "BossController의 Sprite Renderer에 " +
+                "BossForm의 Sprite Renderer를 연결하세요.",
+                this
+            );
+            return;
+        }
+
+        Sprite deathSprite = Resources.Load<Sprite>(deathSpritePath);
+
+        if (deathSprite == null)
+        {
+            Debug.LogError(
+                $"사망 이미지를 찾지 못했습니다: Resources/{deathSpritePath}\n" +
+                "파일 경로와 이미지의 Sprite 설정을 확인하세요.",
+                this
+            );
+            return;
+        }
+
+        spriteRenderer.sprite = deathSprite;
     }
 
     // 포효 애니메이션 또는 포효 연출이 끝났을 때 호출
@@ -492,6 +681,7 @@ public class BossController : MonoBehaviour
                 );
 
                 // 한 번의 점프가 끝난 시점에만 패턴 판단
+                UpdateFacing();
                 SelectNextAction();
             }
         }
@@ -529,17 +719,72 @@ public class BossController : MonoBehaviour
 
     private void Walk()
     {
-        // 점프하는 순간 바라보는 방향으로 속도 설정
-        body.linearVelocity = new Vector2(facingDirection * jumpHorizontalSpeed,jumpVerticalSpeed);
+        if (body == null)
+            return;
+
+        if (playerBodyCollider == null || bossBodyCollider == null)
+        {
+            Debug.LogWarning(
+                "[방향 확인] Player Body Collider 또는 " +
+                "Boss Body Collider가 연결되지 않았습니다.",
+                this
+            );
+            return;
+        }
+
+        // UpdateWalkJump에서 바닥 조건을 통과한 후 호출됨
+        UpdateFacing();
+
+        float playerX = playerBodyCollider.bounds.center.x;
+        float bossX = bossBodyCollider.bounds.center.x;
+
+        body.linearVelocity = new Vector2(
+            facingDirection * jumpHorizontalSpeed,
+            jumpVerticalSpeed
+        );
 
         isWalkJumping = true;
+
+        Debug.Log(
+            $"[점프 방향] 대상={playerBodyCollider.name}, " +
+            $"플레이어X={playerX:F2}, 보스X={bossX:F2}, " +
+            $"방향={facingDirection}, " +
+            $"X속도={body.linearVelocity.x:F2}",
+            this
+        );
     }
 
-    private void UpdatePattern1()
+    private void UpdateJumpTracking()
     {
-        // Pattern1 상태에서 매 프레임 필요한 처리
-    }
+        if (body == null ||
+            playerBodyCollider == null ||
+            bossBodyCollider == null)
+        {
+            return;
+        }
 
+        float horizontalSpeed;
+
+        if (currentState == BossState.Walk && isWalkJumping)
+        {
+            horizontalSpeed = jumpHorizontalSpeed;
+        }
+        else if (currentState == BossState.Pattern1 && isPattern1Jumping)
+        {
+            horizontalSpeed = jumpHorizontalSpeed * 2f;
+        }
+        else
+        {
+            return;
+        }
+
+        // 플레이어 방향으로 수평 속도만 변경
+        // 상승·낙하 속도는 그대로 유지
+        body.linearVelocity = new Vector2(
+            facingDirection * horizontalSpeed,
+            body.linearVelocity.y
+        );
+    }
     private void UpdatePattern2()
     {
         // Pattern2 상태에서 매 프레임 필요한 처리
@@ -603,32 +848,52 @@ public class BossController : MonoBehaviour
 
     private void DebugChangeState(BossState nextState)
     {
-        // 사망 후에는 테스트 키로도 상태를 바꾸지 않음
         if (currentState == BossState.Death)
             return;
 
         if (currentHP <= 0)
             nextState = BossState.Death;
 
+        // 전투 시작 후 Q·W로 대기·포효에 돌아가지 못하게 함
+        if (hasStartedCombat &&
+            (nextState == BossState.Waiting ||
+             nextState == BossState.Roar))
+        {
+            return;
+        }
+
         if (currentState == nextState)
             return;
 
-        // 실행 중이던 패턴의 쿨타임 설정
+        // 진행 중이던 패턴에서 나가면 쿨타임 설정
         if (IsPattern(currentState))
+        {
             SetPatternCooldown(currentState);
+        }
 
-        // 이전 점프 기록과 이동 속도 정리
+        // 이전 이동 기록 정리
         isWalkJumping = false;
         isPattern1Jumping = false;
         jumpWaitRemaining = 0f;
 
         if (body != null)
+        {
             body.linearVelocity = Vector2.zero;
+        }
 
         if (nextState == BossState.Waiting)
+        {
             waitingHitCount = 0;
+        }
 
-        // 테스트에서는 패턴 잠금·진입 조건을 건너뛰고 변경
+        // 테스트로 포효를 건너뛰고 전투에 들어가도 시작 기록
+        if (nextState == BossState.Roar ||
+            nextState == BossState.Walk ||
+            IsPattern(nextState))
+        {
+            hasStartedCombat = true;
+        }
+
         currentState = nextState;
         OnStateEntered(nextState);
 

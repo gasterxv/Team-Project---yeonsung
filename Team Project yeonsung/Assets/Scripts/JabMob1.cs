@@ -6,83 +6,74 @@ public class JabMob1 : EnemyBase
     [SerializeField] private Transform attackSpawnPoint;
 
     [Header("공격 히트박스 시간")]
-    [SerializeField, Min(0f)]
-    private float attackBoxSpawnDelay = 0.5f; // N초
+    [SerializeField, Min(0f)] private float attackBoxSpawnDelay = 0.5f;
+    [SerializeField, Min(0.01f)] private float attackBoxLifetime = 0.2f;
+    [SerializeField, Min(0.01f)] private float attackDuration = 3f;
 
-    [SerializeField, Min(0.01f)]
-    private float attackBoxLifetime = 0.2f;   // C초
+    private GameObject activeAttackBox;
 
     protected override void OnStateChanged(MonsterState newState)
     {
-        // 상태가 바뀌면 남아 있는 예약 취소
-        CancelInvoke(nameof(SpawnAttackBox));
-        CancelInvoke(nameof(FinishTimedAttack));
-
+        ClearAttack();
         base.OnStateChanged(newState);
+        if (newState != MonsterState.Attack) return;
 
-        if (newState == MonsterState.Attack)
-        {
-            // N초 뒤 공격박스 생성
-            if (attackBoxSpawnDelay <= 0f)
-            {
-                SpawnAttackBox();
-            }
-            else
-            {
-                Invoke(nameof(SpawnAttackBox), attackBoxSpawnDelay);
-            }
+        if (attackBoxSpawnDelay <= 0f) SpawnAttackBox();
+        else Invoke(nameof(SpawnAttackBox), attackBoxSpawnDelay);
 
-            // 기존 공격 상태 유지 시간
-            Invoke(nameof(FinishTimedAttack), 3f);
-        }
+        // 히트박스 유지 시간이 끝나기 전에 공격 상태가 종료되지 않도록 보정한다.
+        float duration = Mathf.Max(attackDuration, attackBoxSpawnDelay + attackBoxLifetime);
+        Invoke(nameof(FinishTimedAttack), duration);
     }
 
     private void SpawnAttackBox()
     {
-        // 생성 전에 공격이 취소됐다면 생성하지 않음
-        if (CurrentState != MonsterState.Attack)
-            return;
-
+        if (CurrentState != MonsterState.Attack) return;
         if (attackBoxPrefab == null || attackSpawnPoint == null)
         {
-            Debug.LogWarning(
-                "공격박스 프리팹과 생성 위치를 연결해주세요.",
-                this
-            );
+            Debug.LogWarning("공격박스 프리팹과 생성 위치를 연결해주세요.", this);
             return;
         }
 
-        Vector3 localPosition = attackSpawnPoint.localPosition;
-        localPosition.x =
-            Mathf.Abs(localPosition.x) * FacingDirection;
-
-        Vector3 spawnPosition =
-            transform.TransformPoint(localPosition);
-
-        GameObject attackBox = Instantiate(
-            attackBoxPrefab,
-            spawnPosition,
-            transform.rotation
-        );
-
-        // 생성 시점부터 C초 뒤 삭제
-        Destroy(attackBox, attackBoxLifetime);
+        // 생성 위치가 손 등의 하위 오브젝트여도 몬스터 로컬 좌표로 변환한다.
+        Vector3 localPosition = transform.InverseTransformPoint(attackSpawnPoint.position);
+        localPosition.x = Mathf.Abs(localPosition.x) * FacingDirection;
+        activeAttackBox = Instantiate(attackBoxPrefab,
+            transform.TransformPoint(localPosition), transform.rotation);
+        Destroy(activeAttackBox, attackBoxLifetime);
     }
 
-    private void FinishTimedAttack()
-    {
-        EndAttack();
-    }
+    private void FinishTimedAttack() { EndAttack(); }
 
-    private void OnDisable()
+    private void ClearAttack()
     {
         CancelInvoke(nameof(SpawnAttackBox));
         CancelInvoke(nameof(FinishTimedAttack));
+        if (activeAttackBox != null)
+        {
+            activeAttackBox.SetActive(false);
+            Destroy(activeAttackBox);
+            activeAttackBox = null;
+        }
+    }
+
+    protected override void OnDisable()
+    {
+        ClearAttack();
+        base.OnDisable();
     }
 
     protected override void GetDamage(int damageValue)
     {
+        int previousHP = MonsterCurrentHP;
+
         MonsterCurrentHP =
             Mathf.Max(0, MonsterCurrentHP - damageValue);
+
+        Debug.Log(
+            $"[{name}] HP: {previousHP} → {MonsterCurrentHP}, " +
+            $"받은 데미지: {damageValue}",
+            this
+        );
     }
 }

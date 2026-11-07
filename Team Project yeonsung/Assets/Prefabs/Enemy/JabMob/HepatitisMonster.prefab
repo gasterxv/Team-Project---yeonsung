@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 1599530118667925532}
   - component: {fileID: 3492859720984353035}
   - component: {fileID: -2141721429914866284}
-  - component: {fileID: 7158104827543684862}
+  - component: {fileID: 2696752955430566358}
   m_Layer: 8
   m_Name: HepatitisMonster
   m_TagString: Untagged
@@ -114,16 +114,37 @@ MonoBehaviour:
   spriteFacesRight: 1
   recognitionSensor: {fileID: 1473976500014293510}
   attackRangeSensor: {fileID: 3565083628368622379}
-  MonsterCurrentHP: 100
-  MonsterWalkSpeed: 2
+  MonsterCurrentHP: 1
+  MonsterWalkSpeed: 1
+  chaseSpeed: 8
+  returnSpeed: 6
   MonsterAttackInterval: 2
-  MonsterAttackCooldown: 0
-  patrolWalkTime: 5
+  MonsterAttackCooldown: 5
+  patrolRadius: 3
   patrolIdleTime: 3
+  maxChaseDistance: 10
+  waitBeforeReturn: 1
+  homeTolerance: 0.15
+  homeVerticalTolerance: 0.5
+  returnTimeout: 5
+  avoidCliffs: 1
+  groundLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  groundProbeAhead: 0.2
+  groundProbeDepth: 0.6
+  enableDistanceDespawn: 1
+  player: {fileID: 1022246131664016688, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+  gameplayCamera: {fileID: 0}
+  useCameraWidth: 1
+  screenWidthsEachSide: 1
+  fallbackHorizontalDistance: 25
+  verticalDespawnDistance: 0
   attackBoxPrefab: {fileID: 9199786445007790732, guid: d5018249a2c33414087a87b7194b2e34, type: 3}
-  attackSpawnPoint: {fileID: 4119867452376680221, guid: 7c53bfe39f8161e40a3790eb8c010ae8, type: 3}
+  attackSpawnPoint: {fileID: 3971888258885223652}
   attackBoxSpawnDelay: 0.5
   attackBoxLifetime: 0.2
+  attackDuration: 3
 --- !u!50 &3492859720984353035
 Rigidbody2D:
   serializedVersion: 5
@@ -173,7 +194,7 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!58 &7158104827543684862
+--- !u!58 &2696752955430566358
 CircleCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -219,7 +240,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4119867452376680221, guid: 7c53bfe39f8161e40a3790eb8c010ae8, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.164
+      value: 0.187
       objectReference: {fileID: 0}
     - target: {fileID: 4119867452376680221, guid: 7c53bfe39f8161e40a3790eb8c010ae8, type: 3}
       propertyPath: m_LocalPosition.y
@@ -265,8 +286,7 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 8
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 8157378307322450267, guid: 7c53bfe39f8161e40a3790eb8c010ae8, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -288,6 +308,14 @@ PrefabInstance:
       propertyPath: owner
       value: 
       objectReference: {fileID: 1599530118667925532}
+    - target: {fileID: -8579422804087719624, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
+      propertyPath: sensorType
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8579422804087719624, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
+      propertyPath: playerAttackTag
+      value: Player
+      objectReference: {fileID: 0}
     - target: {fileID: 4235538556238563046, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
       propertyPath: m_IsTrigger
       value: 1
@@ -536,6 +564,10 @@ PrefabInstance:
       propertyPath: owner
       value: 
       objectReference: {fileID: 1599530118667925532}
+    - target: {fileID: 8168712878373058782, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
+      propertyPath: playerAttackTag
+      value: Player
+      objectReference: {fileID: 0}
     - target: {fileID: 8468245921731561309, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
       propertyPath: m_IsTrigger
       value: 1
