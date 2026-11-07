@@ -35,33 +35,40 @@ public class PlayerController : MonoBehaviour
 
     [Header("공격 설정 (바라보는 방향 앞쪽)")]
     public KeyCode attackKey = KeyCode.X;   // 공격 키
-    public int attackDamage = 1;            // 적에게 주는 대미지
-    public float attackRange = 1f;          // 앞쪽 사거리 (히트박스 가로 길이)
-    public float attackHeight = 1f;         // 히트박스 세로 길이
-    public float attackOffsetX = 0.5f;      // 플레이어 몸에서 히트박스가 시작되는 거리
-    public float attackOffsetY = 0f;        // 히트박스 위아래 위치 보정
+    public int attackDamage = 1;            // 적에게 주는 대미지 (히트박스 프리팹을 쓰면 PlayerHitbox의 값이 쓰여서 무시됨)
+    public float attackRange = 1f;          // 앞쪽 사거리 (예전 방식일 때 히트박스 가로 길이)
+    public float attackHeight = 1f;         // 히트박스 세로 길이 (예전 방식일 때)
+    public float attackOffsetX = 0.5f;      // 플레이어 몸에서 히트박스가 시작되는 거리 (예전 방식일 때)
+    public float attackOffsetY = 0f;        // 히트박스 위아래 위치 보정 (예전 방식일 때)
     public float attackHitDelay = 0.1f;     // 공격 시작 후 히트박스가 켜지는 시점(초)
     public float attackHitboxTime = 0.15f;  // 히트박스가 켜져 있는 시간(초)
     public float attackDuration = 0.4f;     // 공격 전체 시간(초), 끝나야 재공격 가능
-    public LayerMask enemyLayer;            // 적이 속한 레이어
+    public LayerMask enemyLayer;            // 적이 속한 레이어 (예전 방식일 때)
 
-    [Header("공격 모션 / 이펙트")]
+    [Header("공격 히트박스 프리팹 (비워두면 코드로 범위를 검사하는 예전 방식 사용)")]
+    public GameObject commonHitboxPrefab;                       // X 공격 때 생성할 히트박스 프리팹 (Player Hitbox가 Common인 것)
+    public Vector2 commonHitboxOffset = new Vector2(1f, 0f);    // 플레이어 기준 생성 위치 (X는 바라보는 방향 쪽으로 적용됨)
+    public GameObject fallingHitboxPrefab;                      // C 낙하 중 생성할 히트박스 프리팹 (Player Hitbox가 Falling인 것)
+    public Vector2 fallingHitboxOffset = new Vector2(0f, -0.3f);// 플레이어 발밑 중앙 기준 위치
+    public float fallingHitboxLingerTime = 0.1f;                // 착지한 뒤 낙하 히트박스가 남아 있는 시간(초)
+
+    [Header("공격 모션 / 이펙트 (예전 방식일 때만 사용)")]
     public bool showAttackEffect = true;    // 공격할 때 이펙트 표시
-    public Sprite attackEffectSprite;       // 나중에 공격 이미지를 넣는 칸 (비워두면 임시 노란 박스)
+    public Sprite attackEffectSprite;       // 비워두면 임시 노란 박스
     public Color attackEffectColor = new Color(1f, 0.9f, 0.2f, 0.6f); // 임시 박스 색 (이미지가 있으면 무시)
     public bool scaleEffectToHitbox = true; // 체크하면 이미지를 히트박스 크기에 맞춰 늘림
 
     [Header("특수공격(낙하공격) 설정")]
     public KeyCode specialKey = KeyCode.C;  // 특수공격 키
     public float specialCooldown = 5f;      // 쿨타임(초), 사용 시점부터 계산
-    public int specialDamage = 3;           // 특수공격 대미지
+    public int specialDamage = 3;           // 특수공격 대미지 (히트박스 프리팹을 쓰면 PlayerHitbox의 값이 쓰여서 무시됨)
     public float specialDriftTime = 0.1f;   // C를 누른 직후, 누르고 있는 이동 방향으로 천천히 움직이는 시간(초)
     public float specialDriftSpeed = 2f;    // 그때의 이동 속도 (이동 속도보다 작게 하면 느리게 움직임)
     public float specialHoverTime = 0.25f;  // 낙하 전에 공중에서 멈춰 있는 전체 시간(초) (이동 시간 포함)
     public float specialFallSpeed = 25f;    // 낙하 속도 (클수록 빠름)
-    public float specialHitWidth = 0.3f;    // 히트박스 가로 (좁을수록 정중앙만 맞음)
-    public float specialHitHeight = 0.6f;   // 히트박스 세로
-    public float specialHitOffsetY = 0f;    // 히트박스 위아래 위치 보정 (+ 위로, - 아래로)
+    public float specialHitWidth = 0.3f;    // 히트박스 가로 (예전 방식일 때, 좁을수록 정중앙만 맞음)
+    public float specialHitHeight = 0.6f;   // 히트박스 세로 (예전 방식일 때)
+    public float specialHitOffsetY = 0f;    // 히트박스 위아래 위치 보정 (예전 방식일 때)
 
     [Header("특수공격 관성 설정 (특수공격 딜레이 시간 동안만 적용)")]
     public bool useSpecialInertia = true;        // 체크하면 이동 후 바로 멈추지 않고 미끄러지다 멈춤, 해제하면 바로 멈춤
@@ -69,7 +76,7 @@ public class PlayerController : MonoBehaviour
 
     [Header("화면 표시 (확인용)")]
     public bool showCooldownUI = true;       // 화면 왼쪽 아래에 쿨타임 표시
-    public bool showAttackBox = true;        // 공격 중 박스 표시 여부 (Gizmos)
+    public bool showAttackBox = true;        // 공격 중 박스 표시 여부 (Gizmos, 예전 방식일 때)
     public bool showAttackBoxAlways = false; // 공격 안 할 때도 박스 표시 여부 (Gizmos)
 
     // 플레이어가 사망할 때 딱 한 번 실행되는 이벤트 (예: PlayerController.OnPlayerDeath += 내함수;)
@@ -85,11 +92,15 @@ public class PlayerController : MonoBehaviour
     private float defaultGravity;           // 원래 중력 값 (사망 시 복구용)
     private CollisionDetectionMode2D defaultCollisionMode;
 
-    // 공격 이펙트 / 히트박스
+    // 공격 이펙트 / 히트박스 (예전 방식)
     private GameObject attackEffectObj;
     private SpriteRenderer attackEffectRenderer;
     private Sprite placeholderSprite;
     private HashSet<Collider2D> attackHitSet = new HashSet<Collider2D>();
+
+    // 지금 떠 있는 히트박스 프리팹
+    private GameObject activeCommonHitbox;
+    private GameObject activeFallingHitbox;
 
     // 체력 상태
     private int currentHealth;              // 현재 남은 체력 칸 수
@@ -169,6 +180,8 @@ public class PlayerController : MonoBehaviour
         {
             Destroy(attackEffectObj);
         }
+
+        DestroyActiveHitboxes();
     }
 
     void Update()
@@ -386,6 +399,7 @@ public class PlayerController : MonoBehaviour
         rb.linearVelocity = Vector2.zero;
         SetSpriteAlpha(1f);
         SetAttackEffectVisible(false);
+        DestroyActiveHitboxes();
 
         // 2) 죽음 애니메이션
         // TODO: 애니메이션 작업 후 여기에 animator.SetTrigger("Die"); 추가 예정
@@ -468,7 +482,8 @@ public class PlayerController : MonoBehaviour
 
     // ---------------- 일반 공격 (앞쪽) ----------------
 
-    // 공격 흐름: 공격 시작 -> (Attack Hit Delay) -> 히트박스와 이펙트 켜짐 -> (Attack Hitbox Time) -> 꺼짐 -> 남은 시간 대기 -> 재공격 가능
+    // 공격 흐름: 공격 시작 -> (Attack Hit Delay) -> 히트박스 켜짐 -> (Attack Hitbox Time) -> 꺼짐 -> 남은 시간 대기 -> 재공격 가능
+    // Common Hitbox Prefab이 있으면 그 프리팹을 생성해서 쓰고, 없으면 코드로 범위를 검사하는 예전 방식을 씁니다.
     IEnumerator AttackRoutine()
     {
         isAttacking = true;
@@ -479,20 +494,39 @@ public class PlayerController : MonoBehaviour
 
         yield return new WaitForSeconds(attackHitDelay);
 
-        // 히트박스와 공격 이펙트가 같은 시간 동안 같이 켜집니다.
         int dir = facingDir;
-        SetAttackEffectVisible(true);
 
-        float endTime = Time.time + Mathf.Max(attackHitboxTime, Time.fixedDeltaTime);
-        while (Time.time < endTime)
+        if (commonHitboxPrefab != null)
         {
-            UpdateAttackEffect(dir);
-            AttackHitCheck(dir);
-            yield return new WaitForFixedUpdate();
-        }
+            // [히트박스 프리팹 방식] 대미지는 프리팹의 PlayerHitbox가 알려주고, 보스 등이 그 값을 읽어서 받습니다.
+            Vector3 spawnPos = transform.position + new Vector3(dir * commonHitboxOffset.x, commonHitboxOffset.y, 0f);
+            activeCommonHitbox = SpawnHitbox(commonHitboxPrefab, spawnPos, dir);
+            Debug.Log("일반 공격 히트박스 프리팹 생성!");
 
-        SetAttackEffectVisible(false);
-        Debug.Log("공격 범위 안에 감지된 적 수: " + attackHitSet.Count);
+            yield return new WaitForSeconds(Mathf.Max(attackHitboxTime, Time.fixedDeltaTime));
+
+            if (activeCommonHitbox != null)
+            {
+                Destroy(activeCommonHitbox);
+            }
+            activeCommonHitbox = null;
+        }
+        else
+        {
+            // [예전 방식] 코드로 범위를 검사해서 TakeDamage(숫자)를 부릅니다.
+            SetAttackEffectVisible(true);
+
+            float endTime = Time.time + Mathf.Max(attackHitboxTime, Time.fixedDeltaTime);
+            while (Time.time < endTime)
+            {
+                UpdateAttackEffect(dir);
+                AttackHitCheck(dir);
+                yield return new WaitForFixedUpdate();
+            }
+
+            SetAttackEffectVisible(false);
+            Debug.Log("공격 범위 안에 감지된 적 수: " + attackHitSet.Count);
+        }
 
         float remain = attackDuration - attackHitDelay - attackHitboxTime;
         yield return new WaitForSeconds(Mathf.Max(0f, remain));
@@ -501,7 +535,7 @@ public class PlayerController : MonoBehaviour
         Debug.Log("공격 끝! 다시 공격 가능");
     }
 
-    // 히트박스 안의 적에게 대미지를 줍니다. (한 번 공격에 적 하나당 1회만)
+    // [예전 방식] 히트박스 안의 적에게 대미지를 줍니다. (한 번 공격에 적 하나당 1회만)
     void AttackHitCheck(int dir)
     {
         Vector2 center = GetAttackCenter(dir);
@@ -527,7 +561,67 @@ public class PlayerController : MonoBehaviour
         );
     }
 
-    // ---------------- 공격 이펙트 ----------------
+    // ---------------- 히트박스 프리팹 ----------------
+
+    // 히트박스 프리팹을 월드에 생성합니다. (플레이어의 자식으로 만들지 않아서 함정, 체크포인트 등이 플레이어로 착각하지 않아요)
+    GameObject SpawnHitbox(GameObject prefab, Vector3 position, int dir)
+    {
+        GameObject obj = Instantiate(prefab, position, Quaternion.identity);
+
+        // 바라보는 방향이 왼쪽이면 이미지와 히트박스를 좌우로 뒤집습니다.
+        Vector3 scale = obj.transform.localScale;
+        scale.x = Mathf.Abs(scale.x) * (dir < 0 ? -1f : 1f);
+        obj.transform.localScale = scale;
+
+        // 닿았다는 신호(Trigger)가 가려면 Rigidbody2D가 하나 필요해서, 없으면 움직이지 않는 Kinematic으로 붙입니다.
+        if (obj.GetComponent<Rigidbody2D>() == null)
+        {
+            Rigidbody2D body = obj.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.gravityScale = 0f;
+        }
+
+        return obj;
+    }
+
+    // 낙하 히트박스 위치: 캐릭터 콜라이더의 발밑 중앙 + Falling Hitbox Offset
+    Vector2 GetFallingHitboxPosition()
+    {
+        Collider2D c = (col != null) ? col : GetComponent<Collider2D>();
+        float bottomY = (c != null) ? c.bounds.min.y : transform.position.y;
+        float centerX = (c != null) ? c.bounds.center.x : transform.position.x;
+
+        return new Vector2(centerX + fallingHitboxOffset.x, bottomY + fallingHitboxOffset.y);
+    }
+
+    void MoveFallingHitbox()
+    {
+        if (activeFallingHitbox == null)
+        {
+            return;
+        }
+
+        Vector2 pos = GetFallingHitboxPosition();
+        activeFallingHitbox.transform.position = new Vector3(pos.x, pos.y, transform.position.z);
+    }
+
+    void DestroyActiveHitboxes()
+    {
+        if (activeCommonHitbox != null)
+        {
+            Destroy(activeCommonHitbox);
+        }
+
+        if (activeFallingHitbox != null)
+        {
+            Destroy(activeFallingHitbox);
+        }
+
+        activeCommonHitbox = null;
+        activeFallingHitbox = null;
+    }
+
+    // ---------------- 공격 이펙트 (예전 방식) ----------------
 
     void CreateAttackEffect()
     {
@@ -691,15 +785,49 @@ public class PlayerController : MonoBehaviour
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous; // 빠른 속도에서 바닥을 뚫지 않게
         Debug.Log("낙하 시작!");
 
+        // Falling Hitbox Prefab이 있으면 낙하하는 동안 발밑을 따라다니게 하고, 없으면 예전 방식으로 검사합니다.
+        bool useFallingPrefab = (fallingHitboxPrefab != null);
+        if (useFallingPrefab)
+        {
+            Vector2 startPos = GetFallingHitboxPosition();
+            activeFallingHitbox = SpawnHitbox(fallingHitboxPrefab, new Vector3(startPos.x, startPos.y, transform.position.z), facingDir);
+            Debug.Log("낙하 공격 히트박스 프리팹 생성!");
+        }
+
         while (!diveLanded && !isGrounded)
         {
             rb.linearVelocity = new Vector2(0f, -specialFallSpeed);
-            SpecialHitCheck();
+
+            if (useFallingPrefab)
+            {
+                MoveFallingHitbox();
+            }
+            else
+            {
+                SpecialHitCheck();
+            }
+
             yield return new WaitForFixedUpdate();
         }
 
-        // 착지 순간에도 한 번 더 판정
-        SpecialHitCheck();
+        rb.linearVelocity = Vector2.zero;
+
+        // 착지 순간: 낙하 히트박스를 잠깐 더 남겨두었다가 지웁니다.
+        if (useFallingPrefab)
+        {
+            MoveFallingHitbox();
+            yield return new WaitForSeconds(Mathf.Max(fallingHitboxLingerTime, Time.fixedDeltaTime));
+
+            if (activeFallingHitbox != null)
+            {
+                Destroy(activeFallingHitbox);
+            }
+            activeFallingHitbox = null;
+        }
+        else
+        {
+            SpecialHitCheck();
+        }
 
         // 3) 원래 상태로 복구
         rb.linearVelocity = Vector2.zero;
@@ -711,7 +839,7 @@ public class PlayerController : MonoBehaviour
         Debug.Log("착지! 특수공격 종료");
     }
 
-    // 낙하 중 캐릭터 아래 중앙의 히트박스로 적을 찾습니다. (낙하 한 번에 적 하나당 1회만 대미지)
+    // [예전 방식] 낙하 중 캐릭터 아래 중앙의 히트박스로 적을 찾습니다. (낙하 한 번에 적 하나당 1회만 대미지)
     void SpecialHitCheck()
     {
         Vector2 center = GetSpecialHitCenter();
@@ -728,7 +856,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // 히트박스 위치: 캐릭터 콜라이더의 발밑 중앙
+    // [예전 방식] 히트박스 위치: 캐릭터 콜라이더의 발밑 중앙
     Vector2 GetSpecialHitCenter()
     {
         Collider2D c = (col != null) ? col : GetComponent<Collider2D>();
@@ -740,11 +868,11 @@ public class PlayerController : MonoBehaviour
 
     // ---------------- 화면 표시 ----------------
 
-    // 공격 범위를 화면(Gizmos)에 그려줍니다. (Game 화면에서는 Gizmos 버튼을 켜야 보입니다.)
+    // 예전 방식의 공격 범위를 화면(Gizmos)에 그려줍니다. (Game 화면에서는 Gizmos 버튼을 켜야 보입니다.)
     void OnDrawGizmos()
     {
         // 특수공격 히트박스: 낙하 중에는 하늘색 박스, 평소에는 (옵션을 켰을 때만) 주황 테두리
-        bool diving = Application.isPlaying && isDiving && showAttackBox;
+        bool diving = Application.isPlaying && isDiving && showAttackBox && fallingHitboxPrefab == null;
         if (diving || showAttackBoxAlways)
         {
             Gizmos.color = diving ? Color.cyan : new Color(1f, 0.5f, 0f);
@@ -760,7 +888,7 @@ public class PlayerController : MonoBehaviour
 
         // 일반 공격 박스: 공격 중에는 노란 박스, 평소에는 (옵션을 켰을 때만) 빨간 테두리
         Vector3 size = new Vector3(attackRange, attackHeight, 0f);
-        bool attackingNow = Application.isPlaying && isAttacking && showAttackBox;
+        bool attackingNow = Application.isPlaying && isAttacking && showAttackBox && commonHitboxPrefab == null;
 
         if (!attackingNow && !showAttackBoxAlways)
         {

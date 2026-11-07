@@ -19,7 +19,7 @@ public class TrainingDummy : MonoBehaviour
     private float lastHitTime;
     private bool inCombat;
 
-    // 플레이어의 공격이 이 함수를 호출합니다.
+    // [예전 방식] 플레이어의 공격이 이 함수를 직접 호출합니다.
     public void TakeDamage(int damage)
     {
         // 측정이 끝난 뒤 새로 맞으면 수치를 처음부터 다시 측정합니다.
@@ -36,6 +36,33 @@ public class TrainingDummy : MonoBehaviour
         lastHitTime = Time.time;
 
         Debug.Log("허수아비 피격! 대미지: " + damage + " / 누적: " + totalDamage + " / DPS: " + GetDps().ToString("F2"));
+    }
+
+    // [히트박스 프리팹 방식] 히트박스가 닿으면 그 안의 PlayerHitbox가 알려주는 대미지를 받습니다.
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        ReceiveFromHitbox(other);
+    }
+
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        ReceiveFromHitbox(collision.collider);
+    }
+
+    void ReceiveFromHitbox(Collider2D other)
+    {
+        PlayerHitbox hitbox = other.GetComponentInParent<PlayerHitbox>();
+        if (hitbox == null)
+        {
+            hitbox = other.GetComponentInChildren<PlayerHitbox>();
+        }
+
+        if (hitbox == null)
+        {
+            return;
+        }
+
+        TakeDamage(hitbox.GiveDamage());
     }
 
     void Update()
