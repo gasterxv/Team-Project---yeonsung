@@ -12,11 +12,6 @@ public class PlayerController : MonoBehaviour
     [Header("회복약 설정")]
     public int maxRemainingHealPotion = 3;      // 최대 회복약 개수 (부활하면 이 값으로 채워짐)
 
-    [Header("체력 테스트 (확인용)")]
-    public bool enableTestKeys = true;          // 테스트 키 사용 여부 (나중에 꺼주세요)
-    public KeyCode testDamageKey = KeyCode.H;   // 누르면 한 칸이 사라짐
-    public KeyCode testHealKey = KeyCode.J;     // 누르면 한 칸 회복
-
     [Header("이동 설정")]
     public KeyCode moveLeftKey = KeyCode.LeftArrow;   // 왼쪽 이동 키 (왼쪽 화살표)
     public KeyCode moveRightKey = KeyCode.RightArrow; // 오른쪽 이동 키 (오른쪽 화살표)
@@ -191,19 +186,6 @@ public class PlayerController : MonoBehaviour
         {
             moveInput = 0f;
             return;
-        }
-
-        // 체력 테스트 키 (확인용)
-        if (enableTestKeys)
-        {
-            if (Input.GetKeyDown(testDamageKey))
-            {
-                TakeDamage();
-            }
-            if (Input.GetKeyDown(testHealKey))
-            {
-                Heal();
-            }
         }
 
         // 대쉬, 특수공격, 일반공격 중에는 이동/점프/다른 행동 입력을 막습니다.
