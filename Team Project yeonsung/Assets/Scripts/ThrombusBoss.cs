@@ -18,7 +18,7 @@ public class BossController : MonoBehaviour
 
     [Header("테스트")]
     [SerializeField] private bool enableDebugKeys = true;
-    
+
 
     [Header("몸과 방향")]
     [SerializeField] private Collider2D bossBodyCollider;
@@ -67,6 +67,21 @@ public class BossController : MonoBehaviour
 
     [Header("포효")]
     [SerializeField, Min(0f)] private float roarDuration = 3f;
+
+    [Header("패턴 2: 돌진")]
+    [SerializeField, Min(0f)] private float pattern2DashSpeed = 5f;
+    [SerializeField] private string pattern2StopTag = "BossRoomTacle";
+    private int pattern2Direction = 1;
+
+    [Header("패턴 3: 반사 점프")]
+    [SerializeField, Min(0.1f)] private float pattern3Impulse = 20f;
+    [SerializeField, Range(15f, 75f)] private float pattern3LaunchAngle = 45f;
+    [SerializeField, Min(1)] private int pattern3BounceLimit = 4;
+    [Tooltip("거의 수평/수직으로만 튕기지 않도록 하는 최소 축 성분")]
+    [SerializeField, Range(0.1f, 0.5f)] private float pattern3MinAxis = 0.35f;
+    private int pattern3BounceCount;
+    private Vector2 pattern3IncomingVelocity;
+    private float pattern3LastBounceTime = float.NegativeInfinity;
 
     [Header("사망 이미지")]
     [SerializeField] private bool isSpriteChange = false;
@@ -119,7 +134,7 @@ public class BossController : MonoBehaviour
             if (collider.attachedRigidbody != body)
                 continue;
 
-            
+
         }
     }
     private void LogJumpStatus()
@@ -194,7 +209,7 @@ public class BossController : MonoBehaviour
             return;
 
         UpdateCooldowns();
-        
+
     }
     private void StartPattern1Jump()
     {
@@ -245,7 +260,7 @@ public class BossController : MonoBehaviour
     }
     private void FixedUpdate()
     {
-        
+
 
         if (currentState == BossState.Death || currentHP <= 0)
         {
@@ -256,7 +271,9 @@ public class BossController : MonoBehaviour
         LogJumpStatus(); // 추가
         CheckPattern1Landing();
         UpdateWalkJump();
-        
+        UpdatePattern2();
+        UpdatePattern3();
+
         if (currentState == BossState.Death ||
             currentHP <= 0 ||
             bossBodyCollider == null ||
@@ -310,6 +327,10 @@ public class BossController : MonoBehaviour
 
     private void UpdateFacing()
     {
+        // 돌진 시작 시 정한 방향을 끝날 때까지 유지한다.
+        if (currentState == BossState.Pattern2 || currentState == BossState.Pattern3)
+            return;
+
         if (body == null ||
             groundCheck == null ||
             playerBodyCollider == null ||
@@ -533,11 +554,11 @@ public class BossController : MonoBehaviour
                 break;
 
             case BossState.Pattern2:
-                // Pattern2 시작
+                StartPattern2Dash();
                 break;
 
             case BossState.Pattern3:
-                // Pattern3 시작
+                StartPattern3Bounce();
                 break;
 
             case BossState.Death:
@@ -626,11 +647,23 @@ public class BossController : MonoBehaviour
 
     public void OnPattern2End()
     {
+        if (currentState != BossState.Pattern2)
+            return;
+
+        if (body != null)
+            body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
+
+        jumpWaitRemaining = jumpWaitTime;
         FinishPattern(BossState.Pattern2);
     }
 
     public void OnPattern3End()
     {
+        if (currentState != BossState.Pattern3) return;
+        if (body != null) body.linearVelocity = Vector2.zero;
+        isWalkJumping = false;
+        isPattern1Jumping = false;
+        jumpWaitRemaining = jumpWaitTime;
         FinishPattern(BossState.Pattern3);
     }
 
@@ -785,14 +818,170 @@ public class BossController : MonoBehaviour
             body.linearVelocity.y
         );
     }
+    private void StartPattern2Dash()
+    {
+        if (body == null || playerBodyCollider == null)
+        {
+            Debug.LogWarning("돌진에 필요한 Body 또는 Player Body Collider를 연결하세요.", this);
+            OnPattern2End();
+            return;
+        }
+
+        float differenceX = playerBodyCollider.transform.position.x - transform.position.x;
+        // X좌표가 같으면 기존 바라보는 방향을 사용한다.
+        pattern2Direction = differenceX > 0f ? 1 : differenceX < 0f ? -1 : facingDirection;
+        SetFacing(pattern2Direction);
+        isWalkJumping = false;
+        isPattern1Jumping = false;
+        UpdatePattern2();
+    }
+
     private void UpdatePattern2()
     {
-        // Pattern2 상태에서 매 프레임 필요한 처리
+        if (currentState != BossState.Pattern2 || currentHP <= 0 || body == null)
+            return;
+
+        // 수직 속도와 중력은 유지하고 수평 속도만 일정하게 설정한다.
+        body.linearVelocity = new Vector2(
+            pattern2Direction * pattern2DashSpeed,
+            body.linearVelocity.y
+        );
+    }
+
+    // Body 센서가 자식 오브젝트에 있는 경우에도 이 함수로 접촉을 전달한다.
+    public void NotifyPattern2Contact(Collider2D other)
+    {
+        if (currentState != BossState.Pattern2 || other == null)
+            return;
+
+        if (other.CompareTag(pattern2StopTag))
+            OnPattern2End();
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        NotifyPattern2Contact(collision.collider);
+        NotifyPattern3Collision(collision);
+    }
+
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        NotifyPattern2Contact(collision.collider);
+        NotifyPattern3Collision(collision);
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        NotifyPattern2TriggerContact(other);
+    }
+
+    private void OnTriggerStay2D(Collider2D other)
+    {
+        NotifyPattern2TriggerContact(other);
+    }
+
+    private void NotifyPattern2TriggerContact(Collider2D other)
+    {
+        // 넓은 패턴 감지 센서가 벽에 먼저 닿았다고 돌진을 끝내지 않는다.
+        if (currentState != BossState.Pattern2 || other == null || bossBodyCollider == null)
+            return;
+        ColliderDistance2D distance = bossBodyCollider.Distance(other);
+        if (distance.isValid && distance.distance <= 0f)
+            NotifyPattern2Contact(other);
     }
 
     private void UpdatePattern3()
     {
-        // Pattern3 상태에서 매 프레임 필요한 처리
+        if (currentState != BossState.Pattern3 || body == null) return;
+        // 충돌 처리로 속도가 0이 되기 전의 진행 방향을 저장한다.
+        pattern3IncomingVelocity = body.linearVelocity;
+    }
+
+    private void StartPattern3Bounce()
+    {
+        if (body == null || playerBodyCollider == null || bossBodyCollider == null)
+        {
+            Debug.LogWarning("패턴 3의 Body, Boss Body Collider, Player Body Collider를 연결하세요.", this);
+            OnPattern3End();
+            return;
+        }
+
+        float differenceX = playerBodyCollider.transform.position.x - transform.position.x;
+        int direction = differenceX > 0f ? 1 : differenceX < 0f ? -1 : facingDirection;
+        float angle = pattern3LaunchAngle * Mathf.Deg2Rad;
+        pattern3BounceCount = 0;
+        pattern3LastBounceTime = float.NegativeInfinity;
+        isWalkJumping = false;
+        isPattern1Jumping = false;
+        ApplyPattern3Impulse(new Vector2(direction * Mathf.Cos(angle), Mathf.Sin(angle)));
+    }
+
+    private bool IsPattern3Surface(Collider2D other)
+    {
+        if (other == null || other.isTrigger) return false;
+        // tag 문자열 비교는 프로젝트에 별칭 태그가 없어도 예외를 발생시키지 않는다.
+        string surfaceTag = other.tag;
+        return surfaceTag == "Ground" || surfaceTag == "BossRoomTacle" ||
+            surfaceTag == "BoosRoomDashFloor" || surfaceTag == "BoseRoomDashFloor";
+    }
+
+    public void NotifyPattern3Collision(Collision2D collision)
+    {
+        if (currentState != BossState.Pattern3 || currentHP <= 0 || body == null ||
+            !IsPattern3Surface(collision.collider) ||
+            pattern3LastBounceTime == Time.fixedTime)
+            return;
+
+        Vector2 incoming = pattern3IncomingVelocity;
+        if (incoming.sqrMagnitude < 0.001f) return;
+
+        // 모서리에 여러 접점이 있으면 가장 정면으로 부딪힌 면을 선택한다.
+        Vector2 normal = Vector2.zero;
+        float strongestApproach = -0.01f;
+        for (int i = 0; i < collision.contactCount; i++)
+        {
+            Vector2 candidate = collision.GetContact(i).normal;
+            float approach = Vector2.Dot(incoming, candidate);
+            if (approach < strongestApproach)
+            {
+                strongestApproach = approach;
+                normal = candidate;
+            }
+        }
+        // 점프 직후 아직 바닥과 닿아 있어도, 바닥에서 멀어지는 중이면 무시한다.
+        if (normal.sqrMagnitude < 0.5f) return;
+
+        if (pattern3BounceCount >= pattern3BounceLimit)
+        {
+            // 마지막 반동의 비행을 끝낸 뒤 바닥에 착지하면 이동 상태로 복귀한다.
+            // 벽/천장 접촉은 추가 충격 없이 일반 물리 충돌로 처리한다.
+            if (normal.y > 0.5f && incoming.y < 0f) OnPattern3End();
+            return;
+        }
+
+        Vector2 reflected = Vector2.Reflect(incoming.normalized, normal).normalized;
+        float xSign = reflected.x < 0f ? -1f : reflected.x > 0f ? 1f : facingDirection;
+        float ySign = reflected.y < 0f ? -1f : 1f;
+        reflected = new Vector2(
+            xSign * Mathf.Max(Mathf.Abs(reflected.x), pattern3MinAxis),
+            ySign * Mathf.Max(Mathf.Abs(reflected.y), pattern3MinAxis)
+        ).normalized;
+        // 경사면에서 각도 보정 때문에 표면 안쪽을 향하지 않도록 보장한다.
+        if (Vector2.Dot(reflected, normal) <= 0f)
+            reflected = Vector2.Reflect(incoming.normalized, normal).normalized;
+
+        pattern3LastBounceTime = Time.fixedTime;
+        pattern3BounceCount++;
+        ApplyPattern3Impulse(reflected);
+    }
+
+    private void ApplyPattern3Impulse(Vector2 direction)
+    {
+        // 매번 동일한 충격량으로 발사하여 이전 속도가 누적되지 않게 한다.
+        body.linearVelocity = Vector2.zero;
+        body.AddForce(direction.normalized * pattern3Impulse, ForceMode2D.Impulse);
+        pattern3IncomingVelocity = direction.normalized * (pattern3Impulse / body.mass);
+        if (Mathf.Abs(direction.x) > 0.001f) SetFacing(direction.x > 0f ? 1 : -1);
     }
 
     private bool HandleDebugKeys()

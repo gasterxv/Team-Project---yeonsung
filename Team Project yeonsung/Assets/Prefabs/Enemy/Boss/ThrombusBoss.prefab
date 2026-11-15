@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 2894688466147683177}
   - component: {fileID: 943302706770889981}
   - component: {fileID: 2819850906379478095}
+  - component: {fileID: 5248132434324296934}
   m_Layer: 8
   m_Name: ThrombusBoss
   m_TagString: Untagged
@@ -109,6 +110,8 @@ MonoBehaviour:
   jumpVerticalSpeed: 7
   jumpWaitTime: 0.5
   roarDuration: 3
+  pattern2DashSpeed: 5
+  pattern2StopTag: BossRoomTacle
   isSpriteChange: 0
   deathSpritePath: "\uBAAC\uC2A4\uD130/\uBCF4\uC2A4/\uBCF4\uC2A4\uC0AC\uB9DD"
   onPlayerContactDamage:
@@ -163,6 +166,23 @@ CapsuleCollider2D:
   m_Offset: {x: 0.00016812088, y: -0.0000021100248}
   m_Size: {x: 0.20059614, y: 0.14270665}
   m_Direction: 1
+--- !u!114 &5248132434324296934
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4104783086079301403}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68dbf6dd26d1d3e4799ca72ecbf4d81e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  owner: {fileID: 943302706770889981}
+  sensorType: 1
+  playerBodyTag: Player
+  playerAttackTag: PlayerAttack
+  dashFloorTag: BoseRoomDashFloor
 --- !u!1001 &358052350613396025
 PrefabInstance:
   m_ObjectHideFlags: 0
