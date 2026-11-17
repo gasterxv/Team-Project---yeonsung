@@ -364,7 +364,6 @@ MonoBehaviour:
   brokenFloorPrefab: {fileID: 5650725999403720212, guid: 8d081a5bae425f64aa45874f060395bc, type: 3}
   currentFloor: {fileID: 4834230304455805141}
   restorePoint: {fileID: 0}
-  checkPoint: {fileID: 0}
 --- !u!4 &2103170710
 Transform:
   m_ObjectHideFlags: 0
@@ -390,11 +389,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 7066010337919176250, guid: 40523630de0531f488e0e26c5b700ccc, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 1.63
+      value: 3.49
       objectReference: {fileID: 0}
     - target: {fileID: 7066010337919176250, guid: 40523630de0531f488e0e26c5b700ccc, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.01
+      value: 2.08
       objectReference: {fileID: 0}
     - target: {fileID: 7066010337919176250, guid: 40523630de0531f488e0e26c5b700ccc, type: 3}
       propertyPath: m_LocalPosition.z
@@ -451,11 +450,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8895635207236386885, guid: 8d081a5bae425f64aa45874f060395bc, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 1.63
+      value: 2.46
       objectReference: {fileID: 0}
     - target: {fileID: 8895635207236386885, guid: 8d081a5bae425f64aa45874f060395bc, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -1.06
+      value: -2.67
       objectReference: {fileID: 0}
     - target: {fileID: 8895635207236386885, guid: 8d081a5bae425f64aa45874f060395bc, type: 3}
       propertyPath: m_LocalPosition.z
