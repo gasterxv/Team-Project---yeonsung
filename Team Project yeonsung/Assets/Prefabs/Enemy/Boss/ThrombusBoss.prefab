@@ -56,7 +56,7 @@ Rigidbody2D:
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_GravityScale: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -112,23 +112,12 @@ MonoBehaviour:
   roarDuration: 3
   pattern2DashSpeed: 5
   pattern2StopTag: BossRoomTacle
+  pattern3Impulse: 20
+  pattern3LaunchAngle: 45
+  pattern3BounceLimit: 4
+  pattern3MinAxis: 0.35
   isSpriteChange: 0
   deathSpritePath: "\uBAAC\uC2A4\uD130/\uBCF4\uC2A4/\uBCF4\uC2A4\uC0AC\uB9DD"
-  onPlayerContactDamage:
-    m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
-        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
-        m_MethodName: TakeDamage
-        m_Mode: 0
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
 --- !u!70 &2819850906379478095
 CapsuleCollider2D:
   m_ObjectHideFlags: 0
@@ -139,7 +128,7 @@ CapsuleCollider2D:
   m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -235,6 +224,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: BossHitBox
       objectReference: {fileID: 0}
+    - target: {fileID: 1696845708322318233, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_Layer
+      value: 11
+      objectReference: {fileID: 0}
     - target: {fileID: 4523847721943952788, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
       propertyPath: m_Size.x
       value: 0.19554211
@@ -243,6 +236,10 @@ PrefabInstance:
       propertyPath: m_Size.y
       value: 0.13749477
       objectReference: {fileID: 0}
+    - target: {fileID: 4523847721943952788, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
     - target: {fileID: 4523847721943952788, guid: fe4433793cc8d954ea6ca72c94cb4dd4, type: 3}
       propertyPath: m_Offset.x
       value: -0.00000050653915
@@ -285,6 +282,10 @@ PrefabInstance:
       propertyPath: m_Size.y
       value: 1.5
       objectReference: {fileID: 0}
+    - target: {fileID: 79370069302607134, guid: 49e557d311069f549a4789712548807b, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
     - target: {fileID: 79370069302607134, guid: 49e557d311069f549a4789712548807b, type: 3}
       propertyPath: m_Offset.x
       value: 0.5
@@ -524,6 +525,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1653050023850310939}
     m_Modifications:
+    - target: {fileID: 825475860317742412, guid: dbf02222d84080241a05092fd579b243, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
     - target: {fileID: 825475860317742412, guid: dbf02222d84080241a05092fd579b243, type: 3}
       propertyPath: m_IsTrigger
       value: 1

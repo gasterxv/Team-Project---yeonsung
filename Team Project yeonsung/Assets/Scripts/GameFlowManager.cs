@@ -1,218 +1,362 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-// 플레이어 사망 후의 연출(게임오버 UI -> 플레이어 제거 -> 암전 -> 체크포인트 부활)을 맡는 씬 관리 스크립트
 public class GameFlowManager : MonoBehaviour
 {
     public static GameFlowManager Instance { get; private set; }
-
-    // 플레이어가 체크포인트에서 부활한 직후에 한 번 실행되는 이벤트 (부서진 바닥 복구 등에 사용)
     public static event System.Action OnPlayerRespawn;
 
-    [Header("플레이어 부활 설정")]
-    public GameObject playerPrefab;                     // 부활할 때 생성할 플레이어 프리팹
-    public string checkPointTag = "CheckPoint";         // 체크포인트 태그
-    public Vector2 spawnOffset = new Vector2(0f, 0.5f); // 체크포인트 위치에서 얼마나 위에 생성할지 (땅에 끼지 않게)
+    [Header("플레이어 부활")]
+    public GameObject playerPrefab;
+    [SerializeField] private string checkPointTag = "CheckPoint";
+    [SerializeField] private Vector2 spawnOffset = new Vector2(0f, 0.5f);
 
-    [Header("사망 연출 시간")]
-    public float deathAnimTime = 1f;        // 죽음 애니메이션을 기다리는 시간(초)
-    public float gameOverShowTime = 5f;     // T: GameOverUI가 떠 있는 시간(초)
-    public float fadeOutTime = 1f;          // N: 암전 시간(투명도 0 -> 1)
-    public float blackHoldTime = 0.5f;      // 완전히 검은 상태로 유지하는 시간(초)
-    public float fadeInTime = 1f;           // 부활 후 암전이 걷히는 시간(투명도 1 -> 0)
+    [Header("패배 Canvas 프리팹")]
+    [SerializeField] private Canvas defeatCanvasPrefab;
 
-    [Header("게임오버 UI")]
-    public GameObject gameOverUIPrefab;     // 비워두면 기본 "GAME OVER" 글자를 만들어 씁니다. (나중에 직접 만든 UI를 넣을 수 있어요)
-    public string gameOverText = "GAME OVER";
-    public int gameOverFontSize = 80;
-    public Color gameOverTextColor = Color.red;
+    [Header("패배 Canvas 안의 버튼 이름")]
+    [SerializeField] private string restartButtonName = "RetryButton";
+    [SerializeField] private string titleButtonName = "ExitButton";
 
-    private Image fadeImage;                // 화면 전체를 덮는 검은색 이미지
-    private bool isProcessing;              // 사망 연출이 진행 중인지
-    private Vector3 initialSpawnPosition;   // 체크포인트가 없을 때 쓸 처음 플레이어 위치
+    [Header("사망 연출 대기 시간")]
+    [SerializeField] private float deathAnimTime = 1f;
 
-    void Awake()
+    [Header("타이틀 씬 이름")]
+    [SerializeField] private string titleSceneName = "Title";
+
+    [Header("ESC 설정 Canvas 프리팹")]
+    [SerializeField] private Canvas settingCanvasPrefab;
+
+    private Canvas defeatCanvasInstance;
+    private Canvas settingCanvasInstance;
+    private Button restartButton;
+    private Button titleButton;
+
+    private PlayerController deadPlayer;
+    private PlayerController pausedPlayer;
+    private bool playerWasEnabled;
+    private bool settingsOpen;
+    private float timeScaleBeforeSettings = 1f;
+
+    private Vector3 initialSpawnPosition;
+    private bool isProcessing;
+    private bool isChoosing;
+    private bool isChanging;
+
+    private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         Instance = this;
-        CreateFadeUI();
     }
 
-    void Start()
+    private void Start()
     {
-        PlayerController player = FindFirstObjectByType<PlayerController>();
+        PlayerController player =
+            FindFirstObjectByType<PlayerController>();
+
         if (player != null)
         {
             initialSpawnPosition = player.transform.position;
         }
     }
 
-    // PlayerController.PlayerDeath()가 호출합니다.
-    public void BeginDeathSequence(PlayerController player)
+    private void Update()
     {
-        if (isProcessing)
+        if (Instance != this) return;
+        if (isProcessing || isChoosing || isChanging) return;
+
+        if (Input.GetKeyDown(KeyCode.Escape))
         {
+            if (settingsOpen)
+                CloseSettings();
+            else
+                OpenSettings();
+        }
+    }
+
+    public void OpenSettings()
+    {
+        if (settingsOpen || isProcessing || isChoosing || isChanging)
+            return;
+
+        if (settingCanvasPrefab == null)
+        {
+            Debug.LogError("Setting Canvas Prefab을 연결해주세요.", this);
             return;
         }
 
-        isProcessing = true;
-        StartCoroutine(DeathRoutine(player));
+        settingCanvasInstance = Instantiate(settingCanvasPrefab);
+        PrepareCanvas(settingCanvasInstance, 900);
+
+        // 설정창이 열려 있는 동안 플레이어의 입력 처리를 중단합니다.
+        pausedPlayer = FindFirstObjectByType<PlayerController>();
+
+        if (pausedPlayer != null)
+        {
+            playerWasEnabled = pausedPlayer.enabled;
+            pausedPlayer.enabled = false;
+        }
+
+        timeScaleBeforeSettings = Time.timeScale;
+        settingsOpen = true;
+        Time.timeScale = 0f;
     }
 
-    IEnumerator DeathRoutine(PlayerController player)
+    public void CloseSettings()
     {
-        // 1) 죽음 애니메이션이 재생되는 시간
-        yield return new WaitForSeconds(deathAnimTime);
+        if (!settingsOpen) return;
 
-        // 2) GameOverUI를 만들고 T초 뒤에 지웁니다.
-        GameObject gameOverUI = CreateGameOverUI();
-        yield return new WaitForSeconds(gameOverShowTime);
-        Destroy(gameOverUI);
-
-        // 3) 플레이어 캐릭터 제거
-        if (player != null)
+        if (settingCanvasInstance != null)
         {
-            Destroy(player.gameObject);
+            settingCanvasInstance.gameObject.SetActive(false);
+            Destroy(settingCanvasInstance.gameObject);
+            settingCanvasInstance = null;
         }
 
-        // 4) 암전: N초 동안 투명도 0 -> 1
-        yield return StartCoroutine(Fade(0f, 1f, fadeOutTime));
-
-        // 5) 체크포인트에 플레이어 생성 + 체력/회복약 최대로
-        if (playerPrefab != null)
+        if (pausedPlayer != null)
         {
-            Vector3 spawnPosition = GetCheckPointPosition() + (Vector3)spawnOffset;
-            GameObject newPlayer = Instantiate(playerPrefab, spawnPosition, Quaternion.identity);
-
-            PlayerController controller = newPlayer.GetComponent<PlayerController>();
-            if (controller != null)
-            {
-                controller.RestoreFull();
-            }
-        }
-        else
-        {
-            Debug.LogError("GameFlowManager의 Player Prefab 칸이 비어 있어서 플레이어를 만들 수 없어요!");
+            pausedPlayer.enabled = playerWasEnabled;
         }
 
-        // 5-1) 부활 알림: 화면이 완전히 검은 상태에서 부서진 바닥 등을 되돌립니다.
-        OnPlayerRespawn?.Invoke();
-
-        yield return new WaitForSeconds(blackHoldTime);
-
-        // 6) 암전 해제 (투명도 1 -> 0)
-        yield return StartCoroutine(Fade(1f, 0f, fadeInTime));
-
-        isProcessing = false;
+        pausedPlayer = null;
+        settingsOpen = false;
+        Time.timeScale = timeScaleBeforeSettings;
     }
 
-    // 태그가 체크포인트이고 Check Point Spot이 true인 오브젝트의 위치를 찾습니다.
-    Vector3 GetCheckPointPosition()
+    // 기존 PlayerController.PlayerDeath()에서 호출합니다.
+    public void BeginDeathSequence(PlayerController player)
+    {
+        if (isProcessing || player == null) return;
+
+        CloseSettings();
+
+        isProcessing = true;
+        deadPlayer = player;
+
+        StartCoroutine(DeathRoutine());
+    }
+
+    private IEnumerator DeathRoutine()
+    {
+        yield return new WaitForSecondsRealtime(
+            Mathf.Max(0f, deathAnimTime));
+
+        if (!CreateDefeatUI())
+        {
+            isProcessing = false;
+            yield break;
+        }
+
+        isChoosing = true;
+        Time.timeScale = 0f;
+    }
+
+    private bool CreateDefeatUI()
+    {
+        if (defeatCanvasPrefab == null)
+        {
+            Debug.LogError("Defeat Canvas Prefab을 연결해주세요.", this);
+            return false;
+        }
+
+        defeatCanvasInstance = Instantiate(defeatCanvasPrefab);
+        PrepareCanvas(defeatCanvasInstance, 1000);
+
+        restartButton = FindButton(restartButtonName);
+        titleButton = FindButton(titleButtonName);
+
+        if (restartButton == null ||
+            titleButton == null ||
+            restartButton == titleButton)
+        {
+            Debug.LogError(
+                $"패배 UI 버튼 이름을 확인해주세요: " +
+                $"{restartButtonName}, {titleButtonName}", this);
+
+            RemoveDefeatUI();
+            return false;
+        }
+
+        
+        titleButton.onClick.AddListener(GoToTitle);
+
+        SetButtonsInteractable(true);
+        return true;
+    }
+
+    private void PrepareCanvas(Canvas canvas, int order)
+    {
+        canvas.gameObject.SetActive(true);
+        canvas.enabled = true;
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = order;
+        canvas.transform.localScale = Vector3.one;
+
+        if (canvas.GetComponent<GraphicRaycaster>() == null)
+        {
+            canvas.gameObject.AddComponent<GraphicRaycaster>();
+        }
+    }
+
+    private Button FindButton(string buttonName)
+    {
+        Button[] buttons =
+            defeatCanvasInstance.GetComponentsInChildren<Button>(true);
+
+        foreach (Button button in buttons)
+        {
+            if (button.gameObject.name == buttonName)
+                return button;
+        }
+
+        return null;
+    }
+
+    public void RestartFromCheckPoint()
+    {
+        if (!isChoosing || isChanging) return;
+
+        if (playerPrefab == null ||
+            !playerPrefab.activeSelf ||
+            !playerPrefab.TryGetComponent<PlayerController>(
+                out var prefabController) ||
+            !prefabController.enabled)
+        {
+            Debug.LogError(
+                "루트에 활성 PlayerController가 있는 활성 플레이어 " +
+                "프리팹을 Player Prefab에 연결해주세요.", this);
+            return;
+        }
+
+        isChanging = true;
+        SetButtonsInteractable(false);
+
+        Vector3 spawnPosition = GetRespawnPosition();
+
+        if (deadPlayer != null)
+        {
+            deadPlayer.gameObject.SetActive(false);
+            Destroy(deadPlayer.gameObject);
+            deadPlayer = null;
+        }
+
+        GameObject newPlayer = Instantiate(
+            playerPrefab, spawnPosition, Quaternion.identity);
+
+        PlayerController controller =
+            newPlayer.GetComponent<PlayerController>();
+
+        controller.RestoreFull();
+
+        RemoveDefeatUI();
+
+        isChoosing = false;
+        isProcessing = false;
+        Time.timeScale = 1f;
+
+        try
+        {
+            OnPlayerRespawn?.Invoke();
+        }
+        finally
+        {
+            isChanging = false;
+        }
+    }
+
+    // 패배 UI 또는 설정창이 열린 상태에서 사용할 수 있습니다.
+    public void GoToTitle()
+    {
+        if (isChanging || (!isChoosing && !settingsOpen)) return;
+
+        if (string.IsNullOrWhiteSpace(titleSceneName) ||
+            !Application.CanStreamedLevelBeLoaded(titleSceneName))
+        {
+            Debug.LogError(
+                "타이틀 씬 이름과 Build Profiles의 Scene List를 확인해주세요.",
+                this);
+            return;
+        }
+
+        isChanging = true;
+        SetButtonsInteractable(false);
+        CloseSettings();
+
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(titleSceneName);
+    }
+
+    private Vector3 GetRespawnPosition()
     {
         try
         {
-            GameObject[] spots = GameObject.FindGameObjectsWithTag(checkPointTag);
+            GameObject[] spots =
+                GameObject.FindGameObjectsWithTag(checkPointTag);
+
             foreach (GameObject spot in spots)
             {
                 CheckPoint checkPoint = spot.GetComponent<CheckPoint>();
+
                 if (checkPoint != null && checkPoint.checkPointSpot)
                 {
-                    return spot.transform.position;
+                    return spot.transform.position + (Vector3)spawnOffset;
                 }
             }
         }
         catch (UnityException)
         {
-            Debug.LogWarning("'" + checkPointTag + "' 태그가 아직 만들어지지 않았어요. 처음 위치에서 부활합니다.");
-            return initialSpawnPosition;
+            Debug.LogWarning(
+                "체크포인트 태그가 없어 최초 위치에서 부활합니다.", this);
         }
 
-        Debug.LogWarning("Check Point Spot이 켜진 체크포인트가 없어서 처음 위치에서 부활합니다.");
         return initialSpawnPosition;
     }
 
-    // ---------------- UI ----------------
-
-    // 암전용 검은색 이미지를 만듭니다. (평소에는 투명)
-    void CreateFadeUI()
+    private void SetButtonsInteractable(bool interactable)
     {
-        GameObject canvasObj = new GameObject("FadeCanvas");
-        Canvas canvas = canvasObj.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 1000; // 게임오버 UI보다 위에 그려집니다.
+        if (restartButton != null)
+            restartButton.interactable = interactable;
 
-        GameObject imageObj = new GameObject("FadeImage");
-        imageObj.transform.SetParent(canvasObj.transform, false);
-
-        fadeImage = imageObj.AddComponent<Image>();
-        fadeImage.color = new Color(0f, 0f, 0f, 0f);
-        fadeImage.raycastTarget = false;
-
-        RectTransform rect = fadeImage.rectTransform;
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
+        if (titleButton != null)
+            titleButton.interactable = interactable;
     }
 
-    GameObject CreateGameOverUI()
+    private void RemoveDefeatUI()
     {
-        // 직접 만든 UI 프리팹이 있으면 그걸 씁니다.
-        if (gameOverUIPrefab != null)
+        if (restartButton != null)
+            restartButton.onClick.RemoveListener(RestartFromCheckPoint);
+
+        if (titleButton != null)
+            titleButton.onClick.RemoveListener(GoToTitle);
+
+        if (defeatCanvasInstance != null)
         {
-            return Instantiate(gameOverUIPrefab);
+            defeatCanvasInstance.gameObject.SetActive(false);
+            Destroy(defeatCanvasInstance.gameObject);
         }
 
-        GameObject root = new GameObject("GameOverUI");
-        Canvas canvas = root.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 900;
-
-        GameObject textObj = new GameObject("GameOverText");
-        textObj.transform.SetParent(root.transform, false);
-
-        Text text = textObj.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.text = gameOverText;
-        text.fontSize = gameOverFontSize;
-        text.fontStyle = FontStyle.Bold;
-        text.alignment = TextAnchor.MiddleCenter;
-        text.color = gameOverTextColor;
-        text.raycastTarget = false;
-
-        RectTransform rect = text.rectTransform;
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-
-        return root;
+        restartButton = null;
+        titleButton = null;
+        defeatCanvasInstance = null;
     }
 
-    IEnumerator Fade(float from, float to, float duration)
+    private void OnDestroy()
     {
-        float t = 0f;
-        float safeDuration = Mathf.Max(0.01f, duration);
+        if (Instance != this) return;
 
-        while (t < safeDuration)
-        {
-            t += Time.deltaTime;
-            SetFadeAlpha(Mathf.Lerp(from, to, t / safeDuration));
-            yield return null;
-        }
+        CloseSettings();
+        RemoveDefeatUI();
 
-        SetFadeAlpha(to);
-    }
+        if (isChoosing)
+            Time.timeScale = 1f;
 
-    void SetFadeAlpha(float alpha)
-    {
-        if (fadeImage == null)
-        {
-            return;
-        }
-
-        Color c = fadeImage.color;
-        c.a = alpha;
-        fadeImage.color = c;
+        Instance = null;
     }
 }

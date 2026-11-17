@@ -16,39 +16,74 @@ public class JabMob1 : EnemyBase
     {
         ClearAttack();
         base.OnStateChanged(newState);
+
         if (newState != MonsterState.Attack) return;
 
-        if (attackBoxSpawnDelay <= 0f) SpawnAttackBox();
-        else Invoke(nameof(SpawnAttackBox), attackBoxSpawnDelay);
+        if (attackBoxSpawnDelay <= 0f)
+        {
+            SpawnAttackBox();
+        }
+        else
+        {
+            Invoke(nameof(SpawnAttackBox), attackBoxSpawnDelay);
+        }
 
-        // 히트박스 유지 시간이 끝나기 전에 공격 상태가 종료되지 않도록 보정한다.
-        float duration = Mathf.Max(attackDuration, attackBoxSpawnDelay + attackBoxLifetime);
+        float duration = Mathf.Max(
+            attackDuration,
+            attackBoxSpawnDelay + attackBoxLifetime);
+
         Invoke(nameof(FinishTimedAttack), duration);
     }
 
     private void SpawnAttackBox()
     {
-        if (CurrentState != MonsterState.Attack) return;
+        if (CurrentState != MonsterState.Attack || IsDead) return;
+
         if (attackBoxPrefab == null || attackSpawnPoint == null)
         {
-            Debug.LogWarning("공격박스 프리팹과 생성 위치를 연결해주세요.", this);
+            Debug.LogWarning(
+                "공격박스 프리팹과 생성 위치를 연결해주세요.", this);
             return;
         }
 
-        // 생성 위치가 손 등의 하위 오브젝트여도 몬스터 로컬 좌표로 변환한다.
-        Vector3 localPosition = transform.InverseTransformPoint(attackSpawnPoint.position);
-        localPosition.x = Mathf.Abs(localPosition.x) * FacingDirection;
-        activeAttackBox = Instantiate(attackBoxPrefab,
-            transform.TransformPoint(localPosition), transform.rotation);
+        if (attackBoxPrefab.GetComponent<EnemyHitbox>() == null)
+        {
+            Debug.LogError(
+                "공격박스 프리팹 루트에 EnemyHitbox를 붙여주세요.", this);
+            return;
+        }
+
+        Vector3 localPosition =
+            transform.InverseTransformPoint(attackSpawnPoint.position);
+
+        localPosition.x =
+            Mathf.Abs(localPosition.x) * FacingDirection;
+
+        activeAttackBox = Instantiate(
+            attackBoxPrefab,
+            transform.TransformPoint(localPosition),
+            transform.rotation);
+
+        activeAttackBox.SetActive(true);
+
+        EnemyHitbox hitbox =
+            activeAttackBox.GetComponent<EnemyHitbox>();
+
+        hitbox.Initialize(this, transform.position);
+
         Destroy(activeAttackBox, attackBoxLifetime);
     }
 
-    private void FinishTimedAttack() { EndAttack(); }
+    private void FinishTimedAttack()
+    {
+        EndAttack();
+    }
 
     private void ClearAttack()
     {
         CancelInvoke(nameof(SpawnAttackBox));
         CancelInvoke(nameof(FinishTimedAttack));
+
         if (activeAttackBox != null)
         {
             activeAttackBox.SetActive(false);
@@ -73,7 +108,6 @@ public class JabMob1 : EnemyBase
         Debug.Log(
             $"[{name}] HP: {previousHP} → {MonsterCurrentHP}, " +
             $"받은 데미지: {damageValue}",
-            this
-        );
+            this);
     }
 }

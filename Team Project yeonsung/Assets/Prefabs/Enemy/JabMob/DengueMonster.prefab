@@ -161,7 +161,7 @@ Rigidbody2D:
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_GravityScale: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -204,7 +204,7 @@ CircleCollider2D:
   m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -316,6 +316,10 @@ PrefabInstance:
       propertyPath: playerAttackTag
       value: Player
       objectReference: {fileID: 0}
+    - target: {fileID: 4235538556238563046, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
     - target: {fileID: 4235538556238563046, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
       propertyPath: m_IsTrigger
       value: 1
@@ -470,6 +474,10 @@ PrefabInstance:
       value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 3980758116757666456, guid: ce3e6b5d14e1a294d939cc2aa9717ee4, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
+    - target: {fileID: 3980758116757666456, guid: ce3e6b5d14e1a294d939cc2aa9717ee4, type: 3}
       propertyPath: m_IsTrigger
       value: 1
       objectReference: {fileID: 0}
@@ -568,6 +576,10 @@ PrefabInstance:
       propertyPath: playerAttackTag
       value: Player
       objectReference: {fileID: 0}
+    - target: {fileID: 8468245921731561309, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
     - target: {fileID: 8468245921731561309, guid: f392fe98f07546249b2e3e33a6d7617a, type: 3}
       propertyPath: m_IsTrigger
       value: 1

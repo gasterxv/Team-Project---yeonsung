@@ -77,6 +77,13 @@ public class PlayerController : MonoBehaviour
     // 플레이어가 사망할 때 딱 한 번 실행되는 이벤트 (예: PlayerController.OnPlayerDeath += 내함수;)
     public static event System.Action OnPlayerDeath;
 
+    [Header("피격 넉백")]
+    [SerializeField, Min(0f)] private float knockbackHorizontalSpeed = 7f;
+    [SerializeField, Min(0f)] private float knockbackUpSpeed = 4f;
+    [SerializeField, Min(0.01f)] private float knockbackDuration = 0.25f;
+    private bool isKnockedBack;
+    private float knockbackEndTime;
+
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private Collider2D col;
@@ -181,6 +188,11 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (Time.timeScale == 0f || isKnockedBack)
+        {
+            moveInput = 0f;
+            return;
+        }
         // 사망하면 아무 입력도 받지 않습니다.
         if (isDead)
         {
@@ -240,6 +252,17 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
+        // 넉백 중에는 일반 이동이 물리 속도를 덮어쓰지 않습니다.
+        if (isKnockedBack)
+        {
+            if (Time.time >= knockbackEndTime)
+            {
+                isKnockedBack = false;
+                rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            }
+            return;
+        }
+
         // 대쉬나 특수공격 중에는 각 코루틴이 속도를 직접 조절합니다.
         if (isDashing || isSpecialAttacking)
         {
@@ -275,6 +298,45 @@ public class PlayerController : MonoBehaviour
 
     // 함정, 몬스터의 공격이 이 함수를 호출합니다. (예: player.TakeDamage();)
     // 대미지 숫자는 쓰지 않아요. 어떤 숫자가 와도 한 번 맞으면 체력 한 칸이 사라집니다.
+    // 보스 등 공격자의 위치를 알고 있을 때 사용합니다.
+    // 기존 TakeDamage(int)는 다른 함정/몬스터와의 호환을 위해 유지합니다.
+    public void TakeDamageFrom(int damage, Vector2 attackerPosition)
+    {
+        if (damage <= 0 || isDead || IsInvincible ||
+            isKnockedBack || Time.timeScale == 0f)
+            return;
+
+        // 진행 중인 공격/대쉬가 넉백 속도를 다시 덮어쓰지 않도록 정리합니다.
+        StopAllCoroutines();
+        isDashing = false;
+        isAttacking = false;
+        isSpecialAttacking = false;
+        isDiving = false;
+        diveLanded = false;
+        isSpecialInvincible = false;
+        isHitInvincible = false;
+        moveInput = 0f;
+        rb.gravityScale = defaultGravity;
+        rb.collisionDetectionMode = defaultCollisionMode;
+        SetSpriteAlpha(1f);
+        SetAttackEffectVisible(false);
+        DestroyActiveHitboxes();
+
+        // 한 칸 피해, 피격 무적, 사망 및 패배 UI는 기존 처리를 사용합니다.
+        TakeDamage(damage);
+        if (isDead) return;
+
+        float playerX = col != null ? col.bounds.center.x : transform.position.x;
+        float differenceX = playerX - attackerPosition.x;
+        float direction = Mathf.Abs(differenceX) > 0.01f
+            ? Mathf.Sign(differenceX)
+            : -facingDir;
+
+        isKnockedBack = true;
+        knockbackEndTime = Time.time + Mathf.Max(0.01f, knockbackDuration);
+        rb.linearVelocity = new Vector2(
+            direction * knockbackHorizontalSpeed, knockbackUpSpeed);
+    }
     public void TakeDamage(int damage = 1)
     {
         if (isDead)
@@ -319,6 +381,9 @@ public class PlayerController : MonoBehaviour
     // 부활할 때 GameFlowManager가 호출합니다. (체력과 회복약을 최대로 되돌림)
     public void RestoreFull()
     {
+        isKnockedBack = false;
+        knockbackEndTime = 0f;
+        moveInput = 0f;
         currentHealth = maxHearts;
         remainingHealPotion = maxRemainingHealPotion;
         isDead = false;
@@ -366,6 +431,7 @@ public class PlayerController : MonoBehaviour
         }
 
         isDead = true;
+        isKnockedBack = false;
         Debug.Log("플레이어 사망!");
 
         // 1) 모든 조작 비활성화: 진행 중이던 대쉬, 공격, 특수공격, 깜빡임을 멈추고 상태를 정리

@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.Events;
+
 public class BossController : MonoBehaviour
 {
     public enum BossState
@@ -96,10 +96,7 @@ public class BossController : MonoBehaviour
     private bool isWalkJumping;
     private float jumpWaitRemaining;
 
-    // 플레이어의 Damaged(int)를 연결할 곳
-    [SerializeField]
-    private UnityEvent<int> onPlayerContactDamage =
-        new UnityEvent<int>();
+
 
     private bool wasTouchingPlayer;
     private int facingDirection = 1;
@@ -258,8 +255,56 @@ public class BossController : MonoBehaviour
         UpdateFacing();
         OnPattern1End();
     }
+    // 플레이어가 부활하면 새 인스턴스를 자동으로 연결합니다.
+    private PlayerController damageTarget;
+
+    private void RefreshPlayerTarget()
+    {
+        if (damageTarget != null && playerBodyCollider != null)
+            return;
+
+        damageTarget = FindFirstObjectByType<PlayerController>();
+
+        if (damageTarget == null)
+        {
+            playerBodyCollider = null;
+            wasTouchingPlayer = false;
+            return;
+        }
+
+        if (playerBodyCollider == null ||
+            playerBodyCollider.GetComponentInParent<PlayerController>() != damageTarget)
+        {
+            playerBodyCollider = damageTarget.GetComponent<Collider2D>();
+
+            if (playerBodyCollider == null)
+            {
+                foreach (Collider2D candidate in
+                         damageTarget.GetComponentsInChildren<Collider2D>())
+                {
+                    if (candidate.isActiveAndEnabled && !candidate.isTrigger)
+                    {
+                        playerBodyCollider = candidate;
+                        break;
+                    }
+                }
+            }
+        }
+
+        wasTouchingPlayer = false;
+    }
+
     private void FixedUpdate()
     {
+        RefreshPlayerTarget();
+
+        // 몸끼리 밀어내는 대신 거리 판정과 플레이어 넉백을 사용합니다.
+        // 센서/공격 히트박스와 바닥 충돌은 변경하지 않습니다.
+        if (bossBodyCollider != null && playerBodyCollider != null &&
+            bossBodyCollider.isActiveAndEnabled && playerBodyCollider.isActiveAndEnabled)
+        {
+            Physics2D.IgnoreCollision(bossBodyCollider, playerBodyCollider, true);
+        }
 
 
         if (currentState == BossState.Death || currentHP <= 0)
@@ -285,6 +330,13 @@ public class BossController : MonoBehaviour
             return;
         }
 
+        // 대기 상태에서는 접촉 피해를 주지 않습니다.
+        if (currentState == BossState.Waiting)
+        {
+            wasTouchingPlayer = false;
+            return;
+        }
+
         // 두 콜라이더 사이의 실제 거리 확인
         ColliderDistance2D result =
             bossBodyCollider.Distance(playerBodyCollider);
@@ -297,7 +349,10 @@ public class BossController : MonoBehaviour
         {
             wasTouchingPlayer = true;
             int damage = currentState == BossState.Pattern1 ? 30 : contactDamage;
-            onPlayerContactDamage.Invoke(damage);
+            if (damageTarget != null && !damageTarget.IsDead && damage > 0)
+            {
+                damageTarget.TakeDamageFrom(damage, bossBodyCollider.bounds.center);
+            }
         }
         else
         {

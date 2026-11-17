@@ -47,17 +47,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c81f2446bce267542afc589e3ad16861, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHealth: 100
+  maxHearts: 4
   hitInvincibleTime: 1
   blinkInterval: 0.1
-  showHealthUI: 1
-  healthUIPosition: {x: 10, y: 150}
-  healthUISize: {x: 260, y: 24}
   maxRemainingHealPotion: 3
-  enableTestKeys: 1
-  testDamageKey: 104
-  testHealKey: 106
-  testDamage: 1
   moveLeftKey: 276
   moveRightKey: 275
   moveSpeed: 5
@@ -75,18 +68,32 @@ MonoBehaviour:
   attackOffsetX: 0.5
   attackOffsetY: 0
   attackHitDelay: 0.1
+  attackHitboxTime: 0.15
   attackDuration: 0.4
   enemyLayer:
     serializedVersion: 2
     m_Bits: 256
+  commonHitboxPrefab: {fileID: 0}
+  commonHitboxOffset: {x: 1, y: 0}
+  fallingHitboxPrefab: {fileID: 0}
+  fallingHitboxOffset: {x: 0, y: -0.3}
+  fallingHitboxLingerTime: 0.1
+  showAttackEffect: 1
+  attackEffectSprite: {fileID: 0}
+  attackEffectColor: {r: 1, g: 0.9, b: 0.2, a: 0.6}
+  scaleEffectToHitbox: 1
   specialKey: 99
   specialCooldown: 1
   specialDamage: 3
+  specialDriftTime: 0.1
+  specialDriftSpeed: 2
   specialHoverTime: 0.25
   specialFallSpeed: 25
   specialHitWidth: 0.3
   specialHitHeight: 0.6
   specialHitOffsetY: 0
+  useSpecialInertia: 1
+  specialSlideDeceleration: 12
   showCooldownUI: 1
   showAttackBox: 1
   showAttackBoxAlways: 0
@@ -161,7 +168,7 @@ Rigidbody2D:
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_GravityScale: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -182,7 +189,7 @@ CircleCollider2D:
   m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
