@@ -1737,7 +1737,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c0da4f754e28b434d9a7949fc7c0e367, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 0}
+  target: {fileID: 2001325885}
   offset: {x: 2, y: 1.5}
   smoothTime: 0.15
 --- !u!1 &343417083
@@ -2608,7 +2608,7 @@ GameObject:
   - component: {fileID: 531012043}
   - component: {fileID: 531012045}
   - component: {fileID: 531012044}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: "\uBC14\uB2E5"
   m_TagString: Ground
   m_Icon: {fileID: 0}
@@ -3214,11 +3214,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1022246131664016688, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 3
+      value: 244.52
       objectReference: {fileID: 0}
     - target: {fileID: 1022246131664016688, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1
+      value: 1.04
       objectReference: {fileID: 0}
     - target: {fileID: 1022246131664016688, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
       propertyPath: m_LocalPosition.z
@@ -6150,6 +6150,14 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 943302706770889981, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: roarDuration
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 943302706770889981, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
+      propertyPath: enableDebugKeys
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 943302706770889981, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
       propertyPath: bossBodyCollider
       value: 
       objectReference: {fileID: 1534102097}
@@ -6159,11 +6167,11 @@ PrefabInstance:
       objectReference: {fileID: 2001325881}
     - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 4.985091
+      value: 253.97
       objectReference: {fileID: 0}
     - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.82044077
+      value: 0.77
       objectReference: {fileID: 0}
     - target: {fileID: 1653050023850310939, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
       propertyPath: m_LocalPosition.z
@@ -6203,7 +6211,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4104783086079301403, guid: aeec5b54596c11e4aa07c23334758fa1, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
