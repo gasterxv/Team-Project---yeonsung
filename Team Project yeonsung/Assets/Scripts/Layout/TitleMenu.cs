@@ -22,6 +22,8 @@ public class TitleMenu : MonoBehaviour
 
     public void OnGameStart()
     {
+        GameStats.StartRun();   // 플레이 시간과 사망 횟수 기록 시작
+
         if (Application.CanStreamedLevelBeLoaded(gameSceneName))
         {
             SceneManager.LoadScene(gameSceneName);

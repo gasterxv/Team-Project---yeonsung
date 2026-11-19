@@ -73,11 +73,11 @@ MonoBehaviour:
   enemyLayer:
     serializedVersion: 2
     m_Bits: 256
-  commonHitboxPrefab: {fileID: 0}
+  commonHitboxPrefab: {fileID: 8351132089416945441, guid: 6f07f8b0708de30419b04c5b1622dbcc, type: 3}
   commonHitboxOffset: {x: 1, y: 0}
-  fallingHitboxPrefab: {fileID: 0}
+  fallingHitboxPrefab: {fileID: 2478133817896214291, guid: 5ef000e3d80a2514aadb55f3d34f04c4, type: 3}
   fallingHitboxOffset: {x: 0, y: -0.3}
-  fallingHitboxLingerTime: 0.1
+  fallingHitboxLingerTime: 0.15
   showAttackEffect: 1
   attackEffectSprite: {fileID: 0}
   attackEffectColor: {r: 1, g: 0.9, b: 0.2, a: 0.6}
@@ -97,6 +97,9 @@ MonoBehaviour:
   showCooldownUI: 1
   showAttackBox: 1
   showAttackBoxAlways: 0
+  knockbackHorizontalSpeed: 7
+  knockbackUpSpeed: 4
+  knockbackDuration: 0.25
 --- !u!212 &6355902526923251151
 SpriteRenderer:
   m_ObjectHideFlags: 0
