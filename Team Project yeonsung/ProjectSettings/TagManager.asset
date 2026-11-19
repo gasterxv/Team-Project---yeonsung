@@ -3,7 +3,14 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 3
-  tags: []
+  tags:
+  - "\uCCB4\uD06C\uD3EC\uC778\uD2B8"
+  - PlayerAttack
+  - Ground
+  - CheckPoint
+  - BoseRoomDashFloor
+  - EnemyAttact
+  - BossRoomTacle
   layers:
   - Default
   - TransparentFX
@@ -12,11 +19,11 @@ TagManager:
   - Water
   - UI
   - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Player
+  - Enemy
+  - Ground
+  - Object
+  - BossBody
   - 
   - 
   - 
@@ -40,6 +47,27 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: Background
+    uniqueID: 332801759
+    locked: 0
+  - name: Decoration
+    uniqueID: 933699993
+    locked: 0
+  - name: Ground
+    uniqueID: 2024493761
+    locked: 0
+  - name: Objects
+    uniqueID: 1799324543
+    locked: 0
+  - name: Enemies
+    uniqueID: 1592232911
+    locked: 0
+  - name: Player
+    uniqueID: 1875862075
+    locked: 0
+  - name: FX
+    uniqueID: 1910301109
     locked: 0
   m_RenderingLayers:
   - Default
