@@ -11,7 +11,15 @@ public abstract class EnemyBase : MonoBehaviour
     [SerializeField] private Rigidbody2D body;
     [SerializeField] private Collider2D monsterBodyCollider;
     [SerializeField] private SpriteRenderer spriteRenderer;
-    [SerializeField] private bool spriteFacesRight = true;
+    [Tooltip("원본 이미지가 오른쪽을 보면 체크, 왼쪽을 보면 해제")]
+    [SerializeField] private bool spriteFacesRight = false;
+
+    [Header("시작 방향과 추적 중 바라보기")]
+    [SerializeField, Range(-1, 1)] private int initialFacingDirection = -1;
+    [Tooltip("플레이어가 반대편으로 이동했을 때 Idle로 기다리는 시간")]
+    [SerializeField, Min(0.1f)] private float chaseFacingInterval = 2f;
+    private float nextFacingCheckTime;
+    private bool waitingToTurn;
 
     [Header("센서")]
     [SerializeField] private EnemySensor recognitionSensor;
@@ -81,6 +89,14 @@ public abstract class EnemyBase : MonoBehaviour
     {
         if (body == null) body = GetComponent<Rigidbody2D>();
         if (monsterBodyCollider == null) monsterBodyCollider = GetComponent<Collider2D>();
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = GetComponent<SpriteRenderer>();
+            if (spriteRenderer == null && animator != null)
+                spriteRenderer = animator.GetComponent<SpriteRenderer>();
+            if (spriteRenderer == null)
+                spriteRenderer = GetComponentInChildren<SpriteRenderer>(true);
+        }
         initialHP = MonsterCurrentHP;
         if (gameplayCamera == null) gameplayCamera = Camera.main;
     }
@@ -104,14 +120,17 @@ public abstract class EnemyBase : MonoBehaviour
         behavior = BehaviorMode.Patrol;
         behaviorTimer = 0f;
         patrolIdleTimer = patrolIdleTime;
-        patrolDirection = 1;
-        SetFacing(1);
+        patrolDirection = initialFacingDirection < 0 ? -1 : 1;
+        nextFacingCheckTime = 0f;
+        waitingToTurn = false;
+        SetFacing(patrolDirection);
         currentState = initialHP > 0 ? MonsterState.Idle : MonsterState.Dead;
         OnStateChanged(currentState);
     }
 
     protected virtual void OnDisable()
     {
+        waitingToTurn = false;
         targetCollider = null;
         isAttackLocked = false;
         moveDirection = 0f;
@@ -120,6 +139,7 @@ public abstract class EnemyBase : MonoBehaviour
 
     protected virtual void Update()
     {
+        if (Time.timeScale == 0f) return;
         if (ShouldDespawn())
         {
             gameObject.SetActive(false);
@@ -211,11 +231,50 @@ public abstract class EnemyBase : MonoBehaviour
             return;
         }
 
+        bool startingChase = behavior != BehaviorMode.Chase;
         behavior = BehaviorMode.Chase;
+
+        // 이미 시작한 공격은 방향을 유지한 채 끝냅니다.
         if (isAttackLocked) { StopHorizontalMovement(); return; }
-        float centerX = monsterBodyCollider != null ? monsterBodyCollider.bounds.center.x : body.position.x;
+
+        float centerX = monsterBodyCollider != null
+            ? monsterBodyCollider.bounds.center.x : body.position.x;
         float differenceX = targetCollider.bounds.center.x - centerX;
-        if (Mathf.Abs(differenceX) > 0.01f) SetFacing(differenceX > 0f ? 1 : -1);
+        int targetDirection = Mathf.Abs(differenceX) > 0.01f
+            ? (differenceX > 0f ? 1 : -1) : facingDirection;
+
+        // 처음 발견했을 때는 기존처럼 즉시 바라봅니다.
+        if (startingChase)
+        {
+            waitingToTurn = false;
+            SetFacing(targetDirection);
+        }
+
+        if (targetDirection != facingDirection)
+        {
+            if (!waitingToTurn)
+            {
+                waitingToTurn = true;
+                nextFacingCheckTime =
+                    Time.time + Mathf.Max(0.1f, chaseFacingInterval);
+            }
+
+            // 돌아보기를 기다리는 동안 이동 및 새 공격을 중단하고 Idle 유지.
+            StopHorizontalMovement();
+            ChangeState(MonsterState.Idle);
+
+            if (Time.time < nextFacingCheckTime)
+                return;
+
+            // 대기 종료 시점의 플레이어 방향을 사용합니다.
+            SetFacing(targetDirection);
+            waitingToTurn = false;
+        }
+        else
+        {
+            // 플레이어가 다시 정면으로 돌아오면 대기를 취소합니다.
+            waitingToTurn = false;
+        }
 
         if (attackTarget != null)
         {
@@ -238,6 +297,7 @@ public abstract class EnemyBase : MonoBehaviour
 
     private void BeginReturn()
     {
+        waitingToTurn = false;
         targetCollider = null;
         behavior = BehaviorMode.WaitBeforeReturn;
         behaviorTimer = waitBeforeReturn;
@@ -331,9 +391,24 @@ public abstract class EnemyBase : MonoBehaviour
 
     private void SetFacing(int direction)
     {
-        facingDirection = direction;
+        facingDirection = direction < 0 ? -1 : 1;
+        ApplyFacing();
+    }
+
+    private void ApplyFacing()
+    {
         if (spriteRenderer != null)
-            spriteRenderer.flipX = spriteFacesRight ? direction < 0 : direction > 0;
+        {
+            spriteRenderer.flipX = spriteFacesRight
+                ? facingDirection < 0
+                : facingDirection > 0;
+        }
+    }
+
+    protected virtual void LateUpdate()
+    {
+        // 애니메이션 클립에 Flip X 키가 있어도 코드가 정한 방향을 유지합니다.
+        ApplyFacing();
     }
 
     private void StopHorizontalMovement()
@@ -388,7 +463,11 @@ public abstract class EnemyBase : MonoBehaviour
 
     public void OnDeathAnimationEnd()
     {
-        if (currentState == MonsterState.Dead) gameObject.SetActive(false);
+        if (currentState != MonsterState.Dead) return;
+
+        // 공격과 센서를 먼저 정지하고, 사망한 몬스터를 삭제합니다.
+        gameObject.SetActive(false);
+        Destroy(gameObject);
     }
 
     protected virtual void GetDamage(int damageValue) { }
