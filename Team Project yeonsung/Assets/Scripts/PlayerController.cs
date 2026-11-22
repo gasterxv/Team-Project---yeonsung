@@ -77,6 +77,9 @@ public class PlayerController : MonoBehaviour
     // 플레이어가 사망할 때 딱 한 번 실행되는 이벤트 (예: PlayerController.OnPlayerDeath += 내함수;)
     public static event System.Action OnPlayerDeath;
 
+    [Header("애니메이션 (Animator 파라미터 이름)")]
+    [SerializeField] private string isMovingParam = "IsMoving";   // Animator의 Bool 파라미터 이름 (Idle <-> Walk)
+
     [Header("피격 넉백")]
     [SerializeField, Min(0f)] private float knockbackHorizontalSpeed = 7f;
     [SerializeField, Min(0f)] private float knockbackUpSpeed = 4f;
@@ -86,6 +89,8 @@ public class PlayerController : MonoBehaviour
 
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
+    private Animator animator;
+    private int isMovingHash;
     private Collider2D col;
     private float moveInput;
     private bool isGrounded;
@@ -161,6 +166,8 @@ public class PlayerController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+        animator = GetComponent<Animator>();
+        isMovingHash = Animator.StringToHash(isMovingParam);
         col = GetComponent<Collider2D>();
 
         defaultGravity = rb.gravityScale;
@@ -291,7 +298,31 @@ public class PlayerController : MonoBehaviour
             spriteRenderer.flipX = true;
         }
 
-        // TODO: 이미지/애니메이션 작업 끝나면 여기에 animator.SetFloat("Speed", Mathf.Abs(moveInput)); 추가 예정
+    }
+
+    // 매 프레임 마지막에 애니메이션 상태를 갱신합니다. (Idle <-> Walk)
+    void LateUpdate()
+    {
+        UpdateAnimation();
+    }
+
+    void UpdateAnimation()
+    {
+        if (animator == null || animator.runtimeAnimatorController == null)
+        {
+            return;
+        }
+
+        // 땅 위에서 좌우로 걷는 중일 때만 걷기 애니메이션
+        bool isMoving = !isDead
+                        && !isKnockedBack
+                        && !isDashing
+                        && !isSpecialAttacking
+                        && !isAttacking
+                        && isGrounded
+                        && Mathf.Abs(moveInput) > 0.01f;
+
+        animator.SetBool(isMovingHash, isMoving);
     }
 
     // ---------------- 체력 (칸 방식) ----------------

@@ -401,15 +401,12 @@ MonoBehaviour:
   playerPrefab: {fileID: 1071796265944891538, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
   checkPointTag: CheckPoint
   spawnOffset: {x: 0, y: 0.5}
+  defeatCanvasPrefab: {fileID: 0}
+  restartButtonName: RetryButton
+  titleButtonName: ExitButton
   deathAnimTime: 1
-  gameOverShowTime: 5
-  fadeOutTime: 1
-  blackHoldTime: 0.5
-  fadeInTime: 1
-  gameOverUIPrefab: {fileID: 0}
-  gameOverText: GAME OVER
-  gameOverFontSize: 80
-  gameOverTextColor: {r: 1, g: 0, b: 0, a: 1}
+  titleSceneName: Title
+  settingCanvasPrefab: {fileID: 0}
 --- !u!1 &1472742800
 GameObject:
   m_ObjectHideFlags: 0
@@ -1143,8 +1140,38 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1071796265944891538, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7976696406874033482}
   m_SourcePrefab: {fileID: 100100000, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+--- !u!1 &7976696406874033481 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1071796265944891538, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
+  m_PrefabInstance: {fileID: 7976696406874033480}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &7976696406874033482
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7976696406874033481}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: b0243278da512ee4ca111413aed299c5, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
