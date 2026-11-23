@@ -677,7 +677,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 125, y: -440}
-  m_SizeDelta: {x: 350, y: 128}
+  m_SizeDelta: {x: 700, y: 135}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &585325971
 MonoBehaviour:
@@ -1541,8 +1541,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bf0de13d3d2a11f439c3bc43f9a55322, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameSceneName: Tutorial_Circulation
-  gameScenePath: Assets/Scenes/Tutorial_Circulation.unity
+  gameSceneName: '#MainScenes#'
+  gameScenePath: Assets/Scenes/#MainScenes#.unity
   settingPanel: {fileID: 538859820}
 --- !u!114 &1296200498
 MonoBehaviour:
