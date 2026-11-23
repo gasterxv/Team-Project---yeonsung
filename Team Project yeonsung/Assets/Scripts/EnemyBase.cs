@@ -21,6 +21,11 @@ public abstract class EnemyBase : MonoBehaviour
     private float nextFacingCheckTime;
     private bool waitingToTurn;
 
+    [Header("추적 중 플레이어와 유지할 간격")]
+    [SerializeField, Min(0f)] private float chaseStopGap = 0.2f;
+    [SerializeField, Min(0f)] private float chaseResumeGap = 0.35f;
+    private bool stoppedNearPlayer;
+
     [Header("센서")]
     [SerializeField] private EnemySensor recognitionSensor;
     [SerializeField] private EnemySensor attackRangeSensor;
@@ -65,6 +70,7 @@ public abstract class EnemyBase : MonoBehaviour
     public bool IsDead => MonsterCurrentHP <= 0 || currentState == MonsterState.Dead;
     public event System.Action<EnemyBase> Died;
     protected int FacingDirection => facingDirection;
+    protected float ChaseStopGap => Mathf.Max(0f, chaseStopGap);
 
     private bool spawnPointManaged;
 
@@ -115,6 +121,7 @@ public abstract class EnemyBase : MonoBehaviour
         MonsterCurrentHP = initialHP;
         MonsterAttackCooldown = 0f;
         targetCollider = null;
+        stoppedNearPlayer = false;
         isAttackLocked = false;
         moveDirection = 0f;
         behavior = BehaviorMode.Patrol;
@@ -169,6 +176,15 @@ public abstract class EnemyBase : MonoBehaviour
             float goalX = behavior == BehaviorMode.ReturnHome ? homePosition.x
                 : homePosition.x + patrolDirection * patrolRadius;
             horizontal = Mathf.Clamp((goalX - body.position.x) / Time.fixedDeltaTime, -speed, speed);
+        }
+
+        // 한 물리 프레임에 정지 간격을 넘어가지 않도록 속도를 제한합니다.
+        if (behavior == BehaviorMode.Chase && horizontal != 0f &&
+            TryGetPlayerGap(out float gap))
+        {
+            float available = Mathf.Max(0f, gap - chaseStopGap);
+            horizontal = Mathf.Sign(horizontal) *
+                Mathf.Min(Mathf.Abs(horizontal), available / Time.fixedDeltaTime);
         }
 
         if (horizontal != 0f && !HasGroundAhead(Mathf.Sign(horizontal)))
@@ -246,6 +262,7 @@ public abstract class EnemyBase : MonoBehaviour
         // 처음 발견했을 때는 기존처럼 즉시 바라봅니다.
         if (startingChase)
         {
+            stoppedNearPlayer = false;
             waitingToTurn = false;
             SetFacing(targetDirection);
         }
@@ -276,16 +293,50 @@ public abstract class EnemyBase : MonoBehaviour
             waitingToTurn = false;
         }
 
-        if (attackTarget != null)
+        if (IsWithinAttackRange(targetCollider, attackTarget != null))
         {
             StopHorizontalMovement();
             ChangeState(MonsterAttackCooldown <= 0f ? MonsterState.Attack : MonsterState.Idle);
         }
         else
         {
+            if (TryGetPlayerGap(out float gap))
+            {
+                float threshold = stoppedNearPlayer
+                    ? Mathf.Max(chaseStopGap + 0.01f, chaseResumeGap)
+                    : chaseStopGap + 0.001f;
+                stoppedNearPlayer = gap <= threshold;
+            }
+            else stoppedNearPlayer = false;
+
+            if (stoppedNearPlayer)
+            {
+                StopHorizontalMovement();
+                ChangeState(MonsterState.Idle);
+                return;
+            }
             moveDirection = Mathf.Abs(differenceX) <= 0.05f ? 0f : Mathf.Sign(differenceX);
             ChangeState(MonsterState.Walk);
         }
+    }
+
+    // 기본 잡몹은 기존 공격 센서를 사용하고, 몸박 잡몹은 거리 판정으로 재정의합니다.
+    protected virtual bool IsWithinAttackRange(Collider2D target, bool sensorDetected)
+    {
+        return sensorDetected;
+    }
+
+    private bool TryGetPlayerGap(out float gap)
+    {
+        gap = 0f;
+        if (monsterBodyCollider == null || targetCollider == null) return false;
+        Bounds own = monsterBodyCollider.bounds;
+        Bounds target = targetCollider.bounds;
+        // 위아래로 떨어진 플레이어 때문에 수평 추적이 멈추지 않게 합니다.
+        if (own.max.y < target.min.y || target.max.y < own.min.y) return false;
+        gap = target.center.x >= own.center.x
+            ? target.min.x - own.max.x : own.min.x - target.max.x;
+        return true;
     }
 
     private static Collider2D ReadTarget(EnemySensor sensor)
@@ -389,7 +440,7 @@ public abstract class EnemyBase : MonoBehaviour
             (verticalDespawnDistance > 0f && Mathf.Abs(offset.y) > verticalDespawnDistance);
     }
 
-    private void SetFacing(int direction)
+    protected void SetFacing(int direction)
     {
         facingDirection = direction < 0 ? -1 : 1;
         ApplyFacing();
