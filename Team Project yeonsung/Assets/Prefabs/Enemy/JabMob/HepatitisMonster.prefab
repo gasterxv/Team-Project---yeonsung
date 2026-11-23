@@ -200,6 +200,8 @@ MonoBehaviour:
   spriteFacesRight: 0
   initialFacingDirection: -1
   chaseFacingInterval: 2
+  chaseStopGap: 0.2
+  chaseResumeGap: 0.35
   recognitionSensor: {fileID: 1473976500014293510}
   attackRangeSensor: {fileID: 3565083628368622379}
   MonsterCurrentHP: 100
@@ -228,11 +230,22 @@ MonoBehaviour:
   screenWidthsEachSide: 1
   fallbackHorizontalDistance: 25
   verticalDespawnDistance: 0
-  attackBoxPrefab: {fileID: 9199786445007790732, guid: d5018249a2c33414087a87b7194b2e34, type: 3}
-  attackSpawnPoint: {fileID: 5455288250463398315, guid: b461f5fc0876899429eb85ae4ab997b2, type: 3}
-  attackBoxSpawnDelay: 0.5
-  attackBoxLifetime: 0.2
-  attackDuration: 3
+  attackBodyCollider: {fileID: 5706122096685027681}
+  contactDamage: 10
+  attackHorizontalSpeed: 3
+  attackJumpSpeed: 5
+  attackGroundLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  maxAttackAirTime: 1
+  attackCooldown: 1.5
+  idleStateName: JabMob2Idle
+  walkStateName: JabMob2Walk
+  attackStateName: JabMob2Attack
+  damagedStateName: JabMob2Damaged
+  deathStateName: JabMob2Die
+  deathCleanupDelay: 2
+  damageRecoveryDelay: 0.5
 --- !u!1001 &1022966709402534905
 PrefabInstance:
   m_ObjectHideFlags: 0
