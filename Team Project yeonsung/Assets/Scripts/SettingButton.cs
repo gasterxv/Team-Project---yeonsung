@@ -7,11 +7,14 @@ public class SettingButton : MonoBehaviour
     [Header("Project 창의 SettingPanel 프리팹")]
     [SerializeField] private GameObject settingPanelPrefab;
 
-    [Header("삭제할 SettingUI - 비우면 부모 Canvas를 사용")]
+    [Header("기존 UI 삭제 여부")]
+    [SerializeField] private bool deleteSettingUI = true;
+
+    [Header("삭제할 SettingUI - 비우면 부모 Canvas 사용")]
     [SerializeField] private GameObject settingUI;
 
     private Button button;
-    private bool isOpening;
+    private GameObject openedPanel;
 
     private void Awake()
     {
@@ -31,7 +34,9 @@ public class SettingButton : MonoBehaviour
 
     public void OpenSettingPanel()
     {
-        if (isOpening) return;
+        // 기존 UI를 유지하더라도 패널이 중복 생성되지 않게 합니다.
+        // 열린 패널이 삭제되면 다시 생성할 수 있습니다.
+        if (openedPanel != null) return;
 
         if (settingPanelPrefab == null)
         {
@@ -39,21 +44,22 @@ public class SettingButton : MonoBehaviour
             return;
         }
 
-        if (settingUI == null)
+        if (deleteSettingUI && settingUI == null)
         {
             Debug.LogError("삭제할 SettingUI를 연결해주세요.", this);
             return;
         }
 
-        isOpening = true;
+        // 기존 Canvas를 삭제해도 새 패널이 함께 삭제되지 않도록
+        // 별도 오브젝트로 생성합니다.
+        openedPanel = Instantiate(settingPanelPrefab);
+        openedPanel.SetActive(true);
 
-        // 기존 UI의 자식으로 만들지 않고 별도로 생성합니다.
-        GameObject newPanel = Instantiate(settingPanelPrefab);
-        newPanel.SetActive(true);
-
-        // 새 UI 생성 후 기존 SettingUI를 삭제합니다.
-        settingUI.SetActive(false);
-        Destroy(settingUI);
+        if (deleteSettingUI)
+        {
+            settingUI.SetActive(false);
+            Destroy(settingUI);
+        }
     }
 
     private void OnDestroy()

@@ -93,6 +93,18 @@ public class PlayerController : MonoBehaviour
     private int isMovingHash;
     private Collider2D col;
     private float moveInput;
+    // 입력은 Update에서 보관하고, FixedUpdate에서 한 번만 소비합니다.
+    private bool jumpRequested, dashRequested, attackRequested, specialRequested;
+    private float specialInputSnapshot;
+    private bool resetPhysicsRequested, stopPhysicsRequested, knockbackRequested;
+    private Vector2 pendingKnockbackVelocity;
+    private float dashRemaining;
+    private int dashDirection;
+    private float actionGravity;
+    private CollisionDetectionMode2D actionCollisionMode;
+    private enum SpecialPhase { Hover, Dive, Landing }
+    private SpecialPhase specialPhase;
+    private float specialElapsed, specialSlideX, specialDriftDirection, landingRemaining;
     private bool isGrounded;
     private bool isAttacking;
     private int facingDir = 1;              // 1 = 오른쪽, -1 = 왼쪽
@@ -183,6 +195,20 @@ public class PlayerController : MonoBehaviour
         CreateAttackEffect();
     }
 
+    void OnDisable()
+    {
+        StopAllCoroutines();
+        ClearInputRequests();
+        moveInput = 0f;
+        isDashing = isAttacking = isSpecialAttacking = isDiving = false;
+        isKnockedBack = knockbackRequested = false;
+        isHitInvincible = isSpecialInvincible = false;
+        resetPhysicsRequested = stopPhysicsRequested = true;
+        SetAttackEffectVisible(false);
+        SetSpriteAlpha(1f);
+        DestroyActiveHitboxes();
+    }
+
     void OnDestroy()
     {
         if (attackEffectObj != null)
@@ -195,74 +221,69 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (Time.timeScale == 0f || isKnockedBack)
+        if (Time.timeScale == 0f || isDead || isKnockedBack ||
+            isDashing || isSpecialAttacking || isAttacking)
         {
             moveInput = 0f;
+            ClearInputRequests();
             return;
         }
-        // 사망하면 아무 입력도 받지 않습니다.
-        if (isDead)
-        {
-            moveInput = 0f;
-            return;
-        }
-
-        // 대쉬, 특수공격, 일반공격 중에는 이동/점프/다른 행동 입력을 막습니다.
-        if (isDashing || isSpecialAttacking || isAttacking)
-        {
-            moveInput = 0f;
-            return;
-        }
-
-        // 좌우 이동 입력 (지정한 키만 읽습니다. 둘 다 누르면 멈춤)
         moveInput = 0f;
-        if (Input.GetKey(moveLeftKey))
-        {
-            moveInput -= 1f;
-        }
-        if (Input.GetKey(moveRightKey))
-        {
-            moveInput += 1f;
-        }
-
-        // 점프 (위 방향키), 땅에 닿아있을 때만
-        if (Input.GetKeyDown(jumpKey) && isGrounded)
-        {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-        }
-
-        // 대쉬
-        if (Input.GetKeyDown(dashKey))
-        {
-            TryStartDash();
-        }
-
-        // 공격
-        if (Input.GetKeyDown(attackKey))
-        {
-            StartCoroutine(AttackRoutine());
-        }
-
-        // 특수공격 (낙하공격)
+        if (Input.GetKey(moveLeftKey)) moveInput -= 1f;
+        if (Input.GetKey(moveRightKey)) moveInput += 1f;
+        jumpRequested |= Input.GetKeyDown(jumpKey);
+        dashRequested |= Input.GetKeyDown(dashKey);
+        attackRequested |= Input.GetKeyDown(attackKey);
         if (Input.GetKeyDown(specialKey))
         {
-            TryStartSpecialAttack();
+            specialRequested = true;
+            specialInputSnapshot = moveInput;
         }
+    }
+
+    void ClearInputRequests()
+    {
+        jumpRequested = dashRequested = attackRequested = specialRequested = false;
+    }
+
+    void SetFacingFromInput(float input)
+    {
+        if (Mathf.Abs(input) <= 0.01f) return;
+        facingDir = input > 0f ? 1 : -1;
+        if (spriteRenderer != null) spriteRenderer.flipX = facingDir < 0;
     }
 
     void FixedUpdate()
     {
-        // 사망하면 좌우로 멈춥니다 (낙하 속도는 유지)
+        // 외부에서 요청한 물리 변경은 이곳에서 반영합니다.
+        if (resetPhysicsRequested)
+        {
+            resetPhysicsRequested = false;
+            rb.gravityScale = defaultGravity;
+            rb.collisionDetectionMode = defaultCollisionMode;
+        }
+        if (stopPhysicsRequested)
+        {
+            stopPhysicsRequested = false;
+            rb.linearVelocity = Vector2.zero;
+        }
         if (isDead)
         {
+            ClearInputRequests();
+            knockbackRequested = false;
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
             return;
         }
-
-        // 넉백 중에는 일반 이동이 물리 속도를 덮어쓰지 않습니다.
+        if (knockbackRequested)
+        {
+            knockbackRequested = false;
+            rb.linearVelocity = pendingKnockbackVelocity;
+            knockbackEndTime = Time.fixedTime + Mathf.Max(0.01f, knockbackDuration);
+        }
         if (isKnockedBack)
         {
-            if (Time.time >= knockbackEndTime)
+            ClearInputRequests();
+            if (Time.fixedTime >= knockbackEndTime)
             {
                 isKnockedBack = false;
                 rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
@@ -270,34 +291,29 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 대쉬나 특수공격 중에는 각 코루틴이 속도를 직접 조절합니다.
-        if (isDashing || isSpecialAttacking)
+        if (!isDashing && !isSpecialAttacking && !isAttacking)
         {
-            return;
+            SetFacingFromInput(moveInput);
+            if (jumpRequested && isGrounded)
+            {
+                rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+                isGrounded = false;
+            }
+            // 동시에 누르면 대시 > 일반공격 > 낙하공격 순서로 하나만 실행합니다.
+            if (dashRequested) TryStartDash();
+            if (!isDashing && attackRequested) StartCoroutine(AttackRoutine());
+            if (!isDashing && !isAttacking && specialRequested) TryStartSpecialAttack();
         }
+        ClearInputRequests();
 
-        // 일반 공격 중에는 좌우로 바로 멈춥니다 (낙하 속도는 유지)
+        if (isDashing) { UpdateDashPhysics(); return; }
+        if (isSpecialAttacking) { UpdateSpecialPhysics(); return; }
         if (isAttacking)
         {
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
             return;
         }
-
-        // 평소 좌우 이동: 누르면 바로 최대 속도, 떼면 바로 멈춤
         rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
-
-        // 이동 방향에 따라 바라보는 방향 + 스프라이트 반전
-        if (moveInput > 0f)
-        {
-            facingDir = 1;
-            spriteRenderer.flipX = false;
-        }
-        else if (moveInput < 0f)
-        {
-            facingDir = -1;
-            spriteRenderer.flipX = true;
-        }
-
     }
 
     // 매 프레임 마지막에 애니메이션 상태를 갱신합니다. (Idle <-> Walk)
@@ -347,8 +363,8 @@ public class PlayerController : MonoBehaviour
         isSpecialInvincible = false;
         isHitInvincible = false;
         moveInput = 0f;
-        rb.gravityScale = defaultGravity;
-        rb.collisionDetectionMode = defaultCollisionMode;
+        resetPhysicsRequested = true;
+        ClearInputRequests();
         SetSpriteAlpha(1f);
         SetAttackEffectVisible(false);
         DestroyActiveHitboxes();
@@ -364,8 +380,8 @@ public class PlayerController : MonoBehaviour
             : -facingDir;
 
         isKnockedBack = true;
-        knockbackEndTime = Time.time + Mathf.Max(0.01f, knockbackDuration);
-        rb.linearVelocity = new Vector2(
+        knockbackRequested = true;
+        pendingKnockbackVelocity = new Vector2(
             direction * knockbackHorizontalSpeed, knockbackUpSpeed);
     }
     public void TakeDamage(int damage = 1)
@@ -414,6 +430,10 @@ public class PlayerController : MonoBehaviour
     {
         isKnockedBack = false;
         knockbackEndTime = 0f;
+        knockbackRequested = false;
+        resetPhysicsRequested = true;
+        stopPhysicsRequested = true;
+        ClearInputRequests();
         moveInput = 0f;
         currentHealth = maxHearts;
         remainingHealPotion = maxRemainingHealPotion;
@@ -473,9 +493,10 @@ public class PlayerController : MonoBehaviour
         isDiving = false;
         isSpecialInvincible = false;
         isHitInvincible = false;
-        rb.gravityScale = defaultGravity;
-        rb.collisionDetectionMode = defaultCollisionMode;
-        rb.linearVelocity = Vector2.zero;
+        resetPhysicsRequested = true;
+        ClearInputRequests();
+        stopPhysicsRequested = true;
+        knockbackRequested = false;
         SetSpriteAlpha(1f);
         SetAttackEffectVisible(false);
         DestroyActiveHitboxes();
@@ -515,48 +536,39 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        StartCoroutine(DashRoutine());
+        StartDashPhysics();
     }
 
-    IEnumerator DashRoutine()
+    // FixedUpdate에서만 호출합니다.
+    void StartDashPhysics()
     {
         isDashing = true;
-        nextDashTime = Time.time + dashCooldown;
+        nextDashTime = Time.fixedTime + Mathf.Max(0f, dashCooldown);
+        if (!isGrounded) airDashUsed = true;
+        dashDirection = facingDir;
+        dashRemaining = Mathf.Max(0.01f, dashDuration);
+        actionGravity = rb.gravityScale;
+        actionCollisionMode = rb.collisionDetectionMode;
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        if (dashIgnoreGravity) rb.gravityScale = 0f;
+    }
 
-        // 공중에서 쓴 대쉬만 공중 횟수를 소모합니다. (땅에서 쓴 대쉬는 소모하지 않음)
-        if (!isGrounded)
+    void UpdateDashPhysics()
+    {
+        if (dashRemaining <= 0f)
         {
-            airDashUsed = true;
+            isDashing = false;
+            rb.gravityScale = actionGravity;
+            rb.collisionDetectionMode = actionCollisionMode;
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            return;
         }
-
-        Debug.Log("대쉬!");
-
-        float originalGravity = rb.gravityScale;
-        CollisionDetectionMode2D originalMode = rb.collisionDetectionMode;
-        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous; // 빠른 속도에서 벽을 뚫지 않게
-
-        if (dashIgnoreGravity)
-        {
-            rb.gravityScale = 0f;
-        }
-
-        // TODO: 애니메이션 작업 후 여기에 animator.SetTrigger("Dash"); 추가 예정
-
-        float dashSpeed = dashDistance / Mathf.Max(0.01f, dashDuration);
-        float endTime = Time.time + dashDuration;
-
-        while (Time.time < endTime)
-        {
-            float vy = dashIgnoreGravity ? 0f : rb.linearVelocity.y;
-            rb.linearVelocity = new Vector2(facingDir * dashSpeed, vy);
-            yield return new WaitForFixedUpdate();
-        }
-
-        // 원래 상태로 복구
-        rb.gravityScale = originalGravity;
-        rb.collisionDetectionMode = originalMode;
-        rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
-        isDashing = false;
+        // 마지막 물리 프레임을 보정하여 설정한 거리를 초과하지 않습니다.
+        float portion = Mathf.Min(1f, dashRemaining / Time.fixedDeltaTime);
+        float speed = dashDistance / Mathf.Max(0.01f, dashDuration);
+        rb.linearVelocity = new Vector2(dashDirection * speed * portion,
+            dashIgnoreGravity ? 0f : rb.linearVelocity.y);
+        dashRemaining = Mathf.Max(0f, dashRemaining - Time.fixedDeltaTime);
     }
 
     // ---------------- 일반 공격 (앞쪽) ----------------
@@ -790,132 +802,87 @@ public class PlayerController : MonoBehaviour
         }
 
         // C를 누른 순간 누르고 있던 이동 방향(왼쪽 -1, 오른쪽 1, 없으면 0)을 넘겨줍니다.
-        StartCoroutine(SpecialAttackRoutine(moveInput));
+        StartSpecialPhysics(specialInputSnapshot);
     }
 
     // 특수공격 흐름: 공중에서 멈춤(처음 잠깐은 이동 방향으로 천천히 이동, 이후 관성으로 미끄러지며 멈춤) -> 최대 속도로 수직 낙하 -> 착지
-    IEnumerator SpecialAttackRoutine(float driftInput)
+    // 준비 → 낙하 → 착지 대기를 모두 FixedUpdate에서 진행합니다.
+    void StartSpecialPhysics(float driftInput)
     {
         isSpecialAttacking = true;
         isSpecialInvincible = true;
+        isDiving = false;
         diveLanded = false;
         specialHitSet.Clear();
-        nextSpecialTime = Time.time + specialCooldown;
-        Debug.Log("특수공격 시작! (무적)");
-
-        float originalGravity = rb.gravityScale;
-        CollisionDetectionMode2D originalMode = rb.collisionDetectionMode;
-
-        // 1) 공중에서 멈춤
+        nextSpecialTime = Time.fixedTime + Mathf.Max(0f, specialCooldown);
+        actionGravity = rb.gravityScale;
+        actionCollisionMode = rb.collisionDetectionMode;
         rb.gravityScale = 0f;
         rb.linearVelocity = Vector2.zero;
+        specialPhase = SpecialPhase.Hover;
+        specialElapsed = 0f;
+        specialDriftDirection = Mathf.Abs(driftInput) > 0.01f ? Mathf.Sign(driftInput) : 0f;
+        specialSlideX = specialDriftDirection * specialDriftSpeed;
+        SetFacingFromInput(specialDriftDirection);
+    }
 
-        // 누르고 있던 이동 방향 (키를 안 누르고 있었다면 0 = 제자리)
-        float driftDir = 0f;
-        if (driftInput > 0.01f)
+    void UpdateSpecialPhysics()
+    {
+        if (specialPhase == SpecialPhase.Hover)
         {
-            driftDir = 1f;
-        }
-        else if (driftInput < -0.01f)
-        {
-            driftDir = -1f;
-        }
-
-        if (driftDir != 0f)
-        {
-            facingDir = (int)driftDir;
-            spriteRenderer.flipX = (driftDir < 0f);
-            Debug.Log("특수공격 직후 이동 방향으로 천천히 이동!");
-        }
-
-        // TODO: 애니메이션 작업 후 여기에 animator.SetTrigger("Special"); 추가 예정
-
-        float hoverEnd = Time.time + specialHoverTime;
-        float driftEnd = Time.time + Mathf.Min(specialDriftTime, specialHoverTime);
-
-        // 1-1) 처음 잠깐(Special Drift Time) 동안 이동 방향으로 천천히 이동
-        while (Time.time < driftEnd)
-        {
-            rb.linearVelocity = new Vector2(driftDir * specialDriftSpeed, 0f);
-            yield return new WaitForFixedUpdate();
-        }
-
-        // 1-2) 남은 공중 정지 시간: 관성을 쓰면 가던 속도가 서서히 줄며 미끄러지고, 아니면 바로 멈춤
-        float slideX = driftDir * specialDriftSpeed;
-        while (Time.time < hoverEnd)
-        {
-            if (useSpecialInertia)
+            if (specialElapsed < Mathf.Max(0f, specialHoverTime))
             {
-                slideX = Mathf.MoveTowards(slideX, 0f, specialSlideDeceleration * Time.fixedDeltaTime);
+                float driftTime = Mathf.Clamp(specialDriftTime, 0f, specialHoverTime);
+                if (specialElapsed < driftTime)
+                    specialSlideX = specialDriftDirection * specialDriftSpeed;
+                else
+                    specialSlideX = useSpecialInertia
+                        ? Mathf.MoveTowards(specialSlideX, 0f,
+                            Mathf.Max(0f, specialSlideDeceleration) * Time.fixedDeltaTime) : 0f;
+                rb.linearVelocity = new Vector2(specialSlideX, 0f);
+                specialElapsed += Time.fixedDeltaTime;
+                return;
             }
-            else
+            specialPhase = SpecialPhase.Dive;
+            isDiving = true;
+            rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+            if (fallingHitboxPrefab != null)
             {
-                slideX = 0f;
+                Vector2 startPos = GetFallingHitboxPosition();
+                activeFallingHitbox = SpawnHitbox(fallingHitboxPrefab,
+                    new Vector3(startPos.x, startPos.y, transform.position.z), facingDir);
             }
+        }
 
-            rb.linearVelocity = new Vector2(slideX, 0f);
-            yield return new WaitForFixedUpdate();
+        if (specialPhase == SpecialPhase.Dive)
+        {
+            if (fallingHitboxPrefab != null) MoveFallingHitbox();
+            else SpecialHitCheck();
+
+            if (!diveLanded && !isGrounded)
+            {
+                rb.linearVelocity = new Vector2(0f, -specialFallSpeed);
+                return;
+            }
+            rb.linearVelocity = Vector2.zero;
+            isDiving = false;
+            specialPhase = SpecialPhase.Landing;
+            landingRemaining = fallingHitboxPrefab != null
+                ? Mathf.Max(fallingHitboxLingerTime, Time.fixedDeltaTime) : 0f;
+            if (landingRemaining > 0f) return;
         }
 
         rb.linearVelocity = Vector2.zero;
-
-        // 2) 최대 속도로 수직 낙하 (착지할 때까지)
-        isDiving = true;
-        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous; // 빠른 속도에서 바닥을 뚫지 않게
-        Debug.Log("낙하 시작!");
-
-        // Falling Hitbox Prefab이 있으면 낙하하는 동안 발밑을 따라다니게 하고, 없으면 예전 방식으로 검사합니다.
-        bool useFallingPrefab = (fallingHitboxPrefab != null);
-        if (useFallingPrefab)
-        {
-            Vector2 startPos = GetFallingHitboxPosition();
-            activeFallingHitbox = SpawnHitbox(fallingHitboxPrefab, new Vector3(startPos.x, startPos.y, transform.position.z), facingDir);
-            Debug.Log("낙하 공격 히트박스 프리팹 생성!");
-        }
-
-        while (!diveLanded && !isGrounded)
-        {
-            rb.linearVelocity = new Vector2(0f, -specialFallSpeed);
-
-            if (useFallingPrefab)
-            {
-                MoveFallingHitbox();
-            }
-            else
-            {
-                SpecialHitCheck();
-            }
-
-            yield return new WaitForFixedUpdate();
-        }
-
-        rb.linearVelocity = Vector2.zero;
-
-        // 착지 순간: 낙하 히트박스를 잠깐 더 남겨두었다가 지웁니다.
-        if (useFallingPrefab)
-        {
-            MoveFallingHitbox();
-            yield return new WaitForSeconds(Mathf.Max(fallingHitboxLingerTime, Time.fixedDeltaTime));
-
-            if (activeFallingHitbox != null)
-            {
-                Destroy(activeFallingHitbox);
-            }
-            activeFallingHitbox = null;
-        }
-        else
-        {
-            SpecialHitCheck();
-        }
-
-        // 3) 원래 상태로 복구
-        rb.linearVelocity = Vector2.zero;
-        rb.gravityScale = originalGravity;
-        rb.collisionDetectionMode = originalMode;
+        MoveFallingHitbox();
+        landingRemaining -= Time.fixedDeltaTime;
+        if (landingRemaining > 0f) return;
+        if (activeFallingHitbox != null) Destroy(activeFallingHitbox);
+        activeFallingHitbox = null;
+        rb.gravityScale = actionGravity;
+        rb.collisionDetectionMode = actionCollisionMode;
         isDiving = false;
         isSpecialAttacking = false;
         isSpecialInvincible = false;
-        Debug.Log("착지! 특수공격 종료");
     }
 
     // [예전 방식] 낙하 중 캐릭터 아래 중앙의 히트박스로 적을 찾습니다. (낙하 한 번에 적 하나당 1회만 대미지)
