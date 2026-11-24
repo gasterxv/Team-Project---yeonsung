@@ -472,6 +472,18 @@ public class PlayerController : MonoBehaviour
         spriteRenderer.color = c;
     }
 
+    // 혈류처럼 닿으면 바로 죽는 곳에서 호출합니다. 무적이어도 체력과 상관없이 즉사합니다.
+    public void KillInstantly()
+    {
+        if (isDead)
+        {
+            return;
+        }
+
+        currentHealth = 0;
+        PlayerDeath();
+    }
+
     // 체력이 0이 되면 실행됩니다.
     // 조작 비활성화 -> 죽음 애니메이션 -> 이벤트 1회 -> GameFlowManager가 게임오버 UI, 암전, 부활을 진행합니다.
     public void PlayerDeath()

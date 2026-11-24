@@ -384,8 +384,7 @@ public static class MainSceneArtApply
             float x0 = BloodPits[i].x, x1 = BloodPits[i].y;
             GameObject blood = Block(root, name, square, x0, x1, BloodTop - BloodDepth, BloodTop, new Color(0.9f, 0.05f, 0.1f, 0.8f), BloodOrder);
             blood.GetComponent<BoxCollider2D>().isTrigger = true;
-            BloodFlow flow = blood.AddComponent<BloodFlow>();
-            flow.bounceVelocity = 11f;   // 적혈구 발판 높이(약 1.6)까지 튕겨 오르게
+            blood.AddComponent<BloodFlow>();   // 닿으면 즉사
 
             Block(blood.transform, name + " 바닥", square, x0, x1, BloodFloorBottom, BloodTop - BloodDepth, new Color(0.35f, 0.02f, 0.05f, 1f), BloodOrder - 1);
             log.Add(name + ": x " + x0 + " ~ " + x1 + " (혈류 자리 + 아래 바닥)");

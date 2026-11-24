@@ -54,9 +54,9 @@ MonoBehaviour:
   maxRemainingHealPotion: 3
   moveLeftKey: 276
   moveRightKey: 275
-  moveSpeed: 5
+  moveSpeed: 6.5
   jumpKey: 273
-  jumpForce: 7
+  jumpForce: 8.5
   dashKey: 32
   dashDistance: 3
   dashDuration: 0.15

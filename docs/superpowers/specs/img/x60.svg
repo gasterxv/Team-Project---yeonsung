@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="598" height="293" font-family="Malgun Gothic,sans-serif" font-size="12"><rect width="100%" height="100%" fill="#1d1f24"/>
+<text x="6" y="287" fill="#fff" font-size="15" font-weight="bold">X 공격 안내판 앞 (x60) — 지형 30 투명 블록</text>
+<line x1="0.0" y1="0" x2="0.0" y2="247" stroke="#333"/><text x="2.0" y="261" fill="#888">52</text>
+<line x1="52.0" y1="0" x2="52.0" y2="247" stroke="#333"/><text x="54.0" y="261" fill="#888">54</text>
+<line x1="104.0" y1="0" x2="104.0" y2="247" stroke="#333"/><text x="106.0" y="261" fill="#888">56</text>
+<line x1="156.0" y1="0" x2="156.0" y2="247" stroke="#333"/><text x="158.0" y="261" fill="#888">58</text>
+<line x1="208.0" y1="0" x2="208.0" y2="247" stroke="#333"/><text x="210.0" y="261" fill="#888">60</text>
+<line x1="260.0" y1="0" x2="260.0" y2="247" stroke="#333"/><text x="262.0" y="261" fill="#888">62</text>
+<line x1="312.0" y1="0" x2="312.0" y2="247" stroke="#333"/><text x="314.0" y="261" fill="#888">64</text>
+<line x1="364.0" y1="0" x2="364.0" y2="247" stroke="#333"/><text x="366.0" y="261" fill="#888">66</text>
+<line x1="416.0" y1="0" x2="416.0" y2="247" stroke="#333"/><text x="418.0" y="261" fill="#888">68</text>
+<line x1="468.0" y1="0" x2="468.0" y2="247" stroke="#333"/><text x="470.0" y="261" fill="#888">70</text>
+<line x1="520.0" y1="0" x2="520.0" y2="247" stroke="#333"/><text x="522.0" y="261" fill="#888">72</text>
+<line x1="572.0" y1="0" x2="572.0" y2="247" stroke="#333"/><text x="574.0" y="261" fill="#888">74</text>
+<line x1="0" y1="234.0" x2="598" y2="234.0" stroke="#2a2a2a"/><text x="2" y="232.0" fill="#666">y-4</text>
+<line x1="0" y1="208.0" x2="598" y2="208.0" stroke="#2a2a2a"/><text x="2" y="206.0" fill="#666">y-3</text>
+<line x1="0" y1="182.0" x2="598" y2="182.0" stroke="#2a2a2a"/><text x="2" y="180.0" fill="#666">y-2</text>
+<line x1="0" y1="156.0" x2="598" y2="156.0" stroke="#2a2a2a"/><text x="2" y="154.0" fill="#666">y-1</text>
+<line x1="0" y1="130.0" x2="598" y2="130.0" stroke="#2a2a2a"/><text x="2" y="128.0" fill="#666">y0</text>
+<line x1="0" y1="104.0" x2="598" y2="104.0" stroke="#2a2a2a"/><text x="2" y="102.0" fill="#666">y1</text>
+<line x1="0" y1="78.0" x2="598" y2="78.0" stroke="#2a2a2a"/><text x="2" y="76.0" fill="#666">y2</text>
+<line x1="0" y1="52.0" x2="598" y2="52.0" stroke="#2a2a2a"/><text x="2" y="50.0" fill="#666">y3</text>
+<line x1="0" y1="26.0" x2="598" y2="26.0" stroke="#2a2a2a"/><text x="2" y="24.0" fill="#666">y4</text>
+<line x1="0" y1="0.0" x2="598" y2="0.0" stroke="#2a2a2a"/><text x="2" y="-2.0" fill="#666">y5</text>
+<rect x="0.0" y="130.0" width="468.8" height="104.0" fill="#a8324a" fill-opacity="0.55" stroke="#a8324a" stroke-width="1" />
+<text x="3.0" y="143.0" fill="#fff">지형 18 (바닥)</text>
+<rect x="206.2" y="105.6" width="61.1" height="24.4" fill="#9e9e9e" fill-opacity="0.12" stroke="#9e9e9e" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="209.2" y="118.6" fill="#fff">지형 30 (투명 → 그림 추가)</text>
+<rect x="493.2" y="87.1" width="61.1" height="24.4" fill="#ff6f6f" fill-opacity="0.55" stroke="#ff6f6f" stroke-width="1" />
+<text x="273.0" y="52.0" fill="#ffffff">[안내] X 공격</text>
+</svg>
