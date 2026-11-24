@@ -2,17 +2,12 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // 혈관 아래쪽을 빠르게 흐르는 혈류
-// 닿으면 대미지를 주고 위로 튕겨내며, 흐르는 방향으로 플레이어를 밀어냅니다.
+// 닿으면 무적 여부와 상관없이 플레이어가 즉사합니다.
 [RequireComponent(typeof(BoxCollider2D))]
 public class BloodFlow : MonoBehaviour
 {
-    [Header("대미지 설정")]
-    public int damage = 1;                  // 닿았을 때 대미지
-    public float bounceVelocity = 9f;      // 닿으면 위로 튕겨내는 속도 (0이면 튕기지 않음)
-
     [Header("흐름 설정")]
-    public float flowSpeed = 3f;            // 흐르는 속도 (+ 오른쪽, - 왼쪽)
-    public float pushStrength = 0.5f;       // 플레이어를 흐름 방향으로 미는 비율 (0이면 밀지 않음)
+    public float flowSpeed = 3f;            // 줄무늬가 흐르는 속도 (+ 오른쪽, - 왼쪽)
 
     [Header("흐름 표시 (보기용)")]
     public int streakCount = 12;            // 흐름을 보여주는 줄무늬 개수
@@ -44,43 +39,24 @@ public class BloodFlow : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        PlayerController player = other.GetComponentInParent<PlayerController>();
-        if (player == null || player.IsDead)
-        {
-            return;
-        }
-
-        // 처음 닿으면 무적 중이어도 튕겨내서 혈류 밖으로 빠져나올 수 있게 합니다.
-        player.TakeDamage(damage);
-        Bounce(player);
+        Kill(other);
     }
 
+    // 혈류 안에서 부활하는 등 Enter를 놓친 경우를 대비합니다.
     void OnTriggerStay2D(Collider2D other)
     {
+        Kill(other);
+    }
+
+    void Kill(Collider2D other)
+    {
         PlayerController player = other.GetComponentInParent<PlayerController>();
         if (player == null || player.IsDead)
         {
             return;
         }
 
-        // 혈류 안에 계속 있으면 무적이 끝날 때마다 다시 대미지 + 튕김
-        if (!player.IsInvincible)
-        {
-            player.TakeDamage(damage);
-            Bounce(player);
-        }
-
-        // PlayerController가 매 프레임 가로 속도를 덮어쓰기 때문에 위치를 직접 밀어줍니다.
-        player.transform.position += Vector3.right * (flowSpeed * pushStrength * Time.deltaTime);
-    }
-
-    void Bounce(PlayerController player)
-    {
-        Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
-        if (rb != null && bounceVelocity > 0f)
-        {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, bounceVelocity);
-        }
+        player.KillInstantly();
     }
 
     void CreateStreaks()

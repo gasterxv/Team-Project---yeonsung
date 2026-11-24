@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="784" height="242" font-family="Malgun Gothic,sans-serif" font-size="12"><rect width="100%" height="100%" fill="#1d1f24"/>
+<text x="6" y="236" fill="#fff" font-size="15" font-weight="bold">혈류 구덩이 x30 — 지금 (혈류가 땅 아래)</text>
+<line x1="0.0" y1="0" x2="0.0" y2="196" stroke="#333"/><text x="2.0" y="210" fill="#888">18</text>
+<line x1="56.0" y1="0" x2="56.0" y2="196" stroke="#333"/><text x="58.0" y="210" fill="#888">20</text>
+<line x1="112.0" y1="0" x2="112.0" y2="196" stroke="#333"/><text x="114.0" y="210" fill="#888">22</text>
+<line x1="168.0" y1="0" x2="168.0" y2="196" stroke="#333"/><text x="170.0" y="210" fill="#888">24</text>
+<line x1="224.0" y1="0" x2="224.0" y2="196" stroke="#333"/><text x="226.0" y="210" fill="#888">26</text>
+<line x1="280.0" y1="0" x2="280.0" y2="196" stroke="#333"/><text x="282.0" y="210" fill="#888">28</text>
+<line x1="336.0" y1="0" x2="336.0" y2="196" stroke="#333"/><text x="338.0" y="210" fill="#888">30</text>
+<line x1="392.0" y1="0" x2="392.0" y2="196" stroke="#333"/><text x="394.0" y="210" fill="#888">32</text>
+<line x1="448.0" y1="0" x2="448.0" y2="196" stroke="#333"/><text x="450.0" y="210" fill="#888">34</text>
+<line x1="504.0" y1="0" x2="504.0" y2="196" stroke="#333"/><text x="506.0" y="210" fill="#888">36</text>
+<line x1="560.0" y1="0" x2="560.0" y2="196" stroke="#333"/><text x="562.0" y="210" fill="#888">38</text>
+<line x1="616.0" y1="0" x2="616.0" y2="196" stroke="#333"/><text x="618.0" y="210" fill="#888">40</text>
+<line x1="672.0" y1="0" x2="672.0" y2="196" stroke="#333"/><text x="674.0" y="210" fill="#888">42</text>
+<line x1="728.0" y1="0" x2="728.0" y2="196" stroke="#333"/><text x="730.0" y="210" fill="#888">44</text>
+<line x1="784.0" y1="0" x2="784.0" y2="196" stroke="#333"/><text x="786.0" y="210" fill="#888">46</text>
+<line x1="0" y1="196.0" x2="784" y2="196.0" stroke="#2a2a2a"/><text x="2" y="194.0" fill="#666">y-5</text>
+<line x1="0" y1="168.0" x2="784" y2="168.0" stroke="#2a2a2a"/><text x="2" y="166.0" fill="#666">y-4</text>
+<line x1="0" y1="140.0" x2="784" y2="140.0" stroke="#2a2a2a"/><text x="2" y="138.0" fill="#666">y-3</text>
+<line x1="0" y1="112.0" x2="784" y2="112.0" stroke="#2a2a2a"/><text x="2" y="110.0" fill="#666">y-2</text>
+<line x1="0" y1="84.0" x2="784" y2="84.0" stroke="#2a2a2a"/><text x="2" y="82.0" fill="#666">y-1</text>
+<line x1="0" y1="56.0" x2="784" y2="56.0" stroke="#2a2a2a"/><text x="2" y="54.0" fill="#666">y0</text>
+<line x1="0" y1="28.0" x2="784" y2="28.0" stroke="#2a2a2a"/><text x="2" y="26.0" fill="#666">y1</text>
+<line x1="0" y1="0.0" x2="784" y2="0.0" stroke="#2a2a2a"/><text x="2" y="-2.0" fill="#666">y2</text>
+<rect x="0.0" y="56.0" width="285.6" height="112.0" fill="#a8324a" fill-opacity="0.55" stroke="#a8324a" stroke-width="1" />
+<text x="3.0" y="69.0" fill="#fff">지형 15</text>
+<rect x="285.6" y="121.8" width="210.6" height="46.2" fill="#a8324a" fill-opacity="0.55" stroke="#a8324a" stroke-width="1" />
+<text x="288.6" y="134.8" fill="#fff">지형 16 (구덩이 바닥)</text>
+<rect x="357.8" y="56.0" width="72.5" height="65.8" fill="#a8324a" fill-opacity="0.55" stroke="#a8324a" stroke-width="1" />
+<text x="360.8" y="69.0" fill="#fff">지형 17</text>
+<rect x="496.2" y="56.0" width="287.8" height="112.0" fill="#a8324a" fill-opacity="0.55" stroke="#a8324a" stroke-width="1" />
+<text x="499.2" y="69.0" fill="#fff">지형 18</text>
+<rect x="93.2" y="140.0" width="552.7" height="22.4" fill="#ff3b3b" fill-opacity="0.55" stroke="#ff3b3b" stroke-width="1" />
+<text x="96.2" y="153.0" fill="#fff">혈류 2 (2) ← 땅속에 묻힘</text>
+<circle cx="327.0" cy="110.6" r="11.2" fill="#4fc3f7"/><text x="342.2" y="114.6" fill="#4fc3f7">플레이어 (발밑 y-2.35)</text>
+</svg>
