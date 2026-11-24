@@ -1,103 +1,130 @@
 using UnityEngine;
 
-// 보스방 흐름 관리
-// - 플레이어가 입장 감지 영역(이 오브젝트의 트리거)에 들어오면 입구 문이 닫힘
-// - 보스를 잡으면 입구/출구 문이 모두 사라짐
-// - 보스전 중 죽고 부활하면 입구 문이 열리고, 보스(체력/위치)와 발판이 처음 상태로 돌아감
 [RequireComponent(typeof(Collider2D))]
 public class BossRoomController : MonoBehaviour
 {
     public BossRoomDoor entranceDoor;
     public BossRoomDoor exitDoor;
-    public GameObject bossRoot;                 // 보스 프리팹 인스턴스의 최상위 오브젝트
+    public GameObject bossRoot;
     public BreakablePlatform[] platforms;
 
     private BossController boss;
-    private GameObject bossTemplate;            // 처음 상태의 보스 복제본 (꺼 둠)
+    private GameObject bossTemplate;
     private bool bossDefeated;
+    private bool playerEntered;
+    private string originalBossName;
 
-    void Awake()
+    private void Awake()
     {
         GetComponent<Collider2D>().isTrigger = true;
-
-        if (bossRoot == null)
+        if (bossRoot == null || bossRoot.GetComponentInChildren<BossController>(true) == null)
         {
-            Debug.LogError("BossRoomController: bossRoot를 연결해주세요.", this);
+            Debug.LogError("BossRoomController: BossController가 포함된 Boss Root를 연결하세요.", this);
+            enabled = false;
             return;
         }
 
-        // 원본을 잠깐 끈 상태에서 복제해야 복제본의 Awake/Start가 실행되지 않습니다.
+        originalBossName = bossRoot.name;
         bool wasActive = bossRoot.activeSelf;
         bossRoot.SetActive(false);
-        bossTemplate = Instantiate(bossRoot, bossRoot.transform.position, bossRoot.transform.rotation, bossRoot.transform.parent);
-        bossTemplate.name = bossRoot.name + " (리셋용)";
+        bossTemplate = Instantiate(bossRoot, bossRoot.transform.position,
+            bossRoot.transform.rotation, bossRoot.transform.parent);
+        bossTemplate.name = originalBossName + " (리셋용)";
+        BindBoss();
         bossRoot.SetActive(wasActive);
-
-        boss = bossRoot.GetComponentInChildren<BossController>(true);
     }
 
-    void OnEnable()
+    private void BindBoss()
+    {
+        if (boss != null) boss.Defeated -= OnBossDefeated;
+        boss = bossRoot.GetComponentInChildren<BossController>(true);
+        if (boss == null) return;
+        boss.SetDeathRoot(bossRoot);
+        boss.Defeated += OnBossDefeated;
+    }
+
+    private void OnEnable()
     {
         GameFlowManager.OnPlayerRespawn += OnPlayerRespawn;
+        if (boss != null)
+        {
+            boss.Defeated -= OnBossDefeated;
+            boss.Defeated += OnBossDefeated;
+        }
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         GameFlowManager.OnPlayerRespawn -= OnPlayerRespawn;
+        if (boss != null) boss.Defeated -= OnBossDefeated;
     }
 
-    void Start()
+    private void Start()
     {
         if (entranceDoor != null) entranceDoor.SetClosed(false);
-        if (exitDoor != null) exitDoor.SetClosed(true);
+        if (exitDoor != null) exitDoor.SetClosed(!bossDefeated);
     }
 
-    void Update()
+    private void Update()
     {
-        if (bossDefeated || boss == null) return;
-
-        if (boss.CurrentState == BossController.BossState.Death)
-        {
-            bossDefeated = true;
-            if (entranceDoor != null) entranceDoor.SetClosed(false);
-            if (exitDoor != null) exitDoor.SetClosed(false);
-            Debug.Log("보스 처치! 보스방 문이 열렸습니다.");
-        }
+        // 재활성화 등으로 이벤트를 놓친 경우에도 상태를 확인합니다.
+        if (!bossDefeated && boss != null && boss.CurrentState == BossController.BossState.Death)
+            OnBossDefeated();
     }
 
-    void OnTriggerEnter2D(Collider2D other)
-    {
-        if (bossDefeated || entranceDoor == null || entranceDoor.IsClosed) return;
-        if (other.GetComponentInParent<PlayerController>() == null) return;
-
-        entranceDoor.SetClosed(true);
-    }
-
-    void OnPlayerRespawn()
+    private void OnBossDefeated()
     {
         if (bossDefeated) return;
-
+        bossDefeated = true;
         if (entranceDoor != null) entranceDoor.SetClosed(false);
-        ResetBoss();
-
-        if (platforms != null)
-        {
-            foreach (BreakablePlatform p in platforms)
-            {
-                if (p != null) p.RestoreNow();
-            }
-        }
+        if (exitDoor != null) exitDoor.SetClosed(false);
+        Debug.Log("보스 처치! 문을 열고, 사망 애니메이션이 끝나면 보스를 삭제합니다.", this);
     }
 
-    void ResetBoss()
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (!enabled || bossDefeated || playerEntered || boss == null) return;
+        PlayerController player = other.GetComponentInParent<PlayerController>();
+        if (player == null || player.IsDead) return;
+        playerEntered = true;
+        if (entranceDoor != null) entranceDoor.SetClosed(true);
+        if (exitDoor != null) exitDoor.SetClosed(true);
+        // 입장 시에는 문만 닫습니다. 보스는 3회 피격 후 스스로 전투를 시작합니다.
+    }
+
+    private void OnPlayerRespawn()
+    {
+        // 같은 프레임에 사망과 부활이 겹친 경우에도 처치를 우선합니다.
+        if (boss != null && boss.CurrentState == BossController.BossState.Death)
+            OnBossDefeated();
+        if (bossDefeated) return;
+        playerEntered = false;
+        if (entranceDoor != null) entranceDoor.SetClosed(false);
+        if (exitDoor != null) exitDoor.SetClosed(true);
+        ResetBoss();
+        if (platforms == null) return;
+        foreach (BreakablePlatform platform in platforms)
+            if (platform != null) platform.RestoreNow();
+    }
+
+    private void ResetBoss()
     {
         if (bossTemplate == null) return;
-
-        if (bossRoot != null) Destroy(bossRoot);
-
-        bossRoot = Instantiate(bossTemplate, bossTemplate.transform.position, bossTemplate.transform.rotation, bossTemplate.transform.parent);
-        bossRoot.name = bossTemplate.name.Replace(" (리셋용)", "");
+        if (boss != null) boss.Defeated -= OnBossDefeated;
+        if (bossRoot != null)
+        {
+            bossRoot.SetActive(false);
+            Destroy(bossRoot);
+        }
+        bossRoot = Instantiate(bossTemplate, bossTemplate.transform.position,
+            bossTemplate.transform.rotation, bossTemplate.transform.parent);
+        bossRoot.name = originalBossName;
+        BindBoss();
         bossRoot.SetActive(true);
-        boss = bossRoot.GetComponentInChildren<BossController>(true);
+    }
+
+    private void OnDestroy()
+    {
+        if (bossTemplate != null) Destroy(bossTemplate);
     }
 }
