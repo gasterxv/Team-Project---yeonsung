@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 5572605084051287577}
   - component: {fileID: 384356036409366799}
   - component: {fileID: 4230304278359406458}
+  - component: {fileID: 7788924573297876736}
   m_Layer: 0
   m_Name: Nano capsule
   m_TagString: Untagged
@@ -30,7 +31,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.2, y: 0.2, z: 6.25}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -105,9 +106,9 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_Sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
-  m_Color: {r: 0, g: 1, b: 1, a: 1}
+  m_SortingOrder: 2
+  m_Sprite: {fileID: 21300000, guid: 85078c3bd3de82842921f8319360d0b7, type: 3}
+  m_Color: {r: 0.003921569, g: 0.6862745, b: 0.9411765, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -160,7 +161,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6464675735079755740}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8e0ff736c8dfa104cada99c48304be58, type: 3}
   m_Name: 
@@ -169,5 +170,17 @@ MonoBehaviour:
   RemainingHealPotion: 5
   HealPotion: 0
   HpRecoveryTiming: 1
-  HpRecoveryValue: 1
+  HeartCellRecoveryAmount: 1
   useKey: 102
+--- !u!114 &7788924573297876736
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6464675735079755740}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eacd680ddefb3a440849be0ee024ef6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

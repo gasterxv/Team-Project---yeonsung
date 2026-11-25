@@ -18,6 +18,11 @@ public class NanoCapsuleUse : MonoBehaviour
     private Coroutine healRoutine;
 
     public int RemainingCount => RemainingHealPotion;
+    public bool TryAddHealPotion()
+    {
+        MaxRemainingHealPotion++;
+        return true;
+    }
 
     private void Update()
     {
