@@ -240,8 +240,12 @@ public class GameFlowManager : MonoBehaviour
 
         Vector3 spawnPosition = GetRespawnPosition();
 
+        // 씬에 놓인 플레이어 크기가 프리팹 원본과 다를 수 있어서, 죽은 플레이어 크기를 그대로 이어받습니다.
+        Vector3 spawnScale = playerPrefab.transform.localScale;
+
         if (deadPlayer != null)
         {
+            spawnScale = deadPlayer.transform.localScale;
             deadPlayer.gameObject.SetActive(false);
             Destroy(deadPlayer.gameObject);
             deadPlayer = null;
@@ -249,6 +253,7 @@ public class GameFlowManager : MonoBehaviour
 
         GameObject newPlayer = Instantiate(
             playerPrefab, spawnPosition, Quaternion.identity);
+        newPlayer.transform.localScale = spawnScale;
 
         PlayerController controller =
             newPlayer.GetComponent<PlayerController>();
