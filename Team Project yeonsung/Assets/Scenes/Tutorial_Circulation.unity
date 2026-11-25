@@ -6782,26 +6782,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player
       objectReference: {fileID: 0}
-    - target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
-      propertyPath: commonHitboxPrefab
-      value: 
-      objectReference: {fileID: 8351132089416945441, guid: 6f07f8b0708de30419b04c5b1622dbcc, type: 3}
-    - target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
-      propertyPath: fallingHitboxPrefab
-      value: 
-      objectReference: {fileID: 2478133817896214291, guid: 5ef000e3d80a2514aadb55f3d34f04c4, type: 3}
-    - target: {fileID: 4521229285579771265, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
-      propertyPath: fallingHitboxLingerTime
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 6355902526923251151, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
-      propertyPath: m_SortingLayer
-      value: 6
-      objectReference: {fileID: 0}
-    - target: {fileID: 6355902526923251151, guid: b08d7e35ed312ba4d825ad03d0bf48c6, type: 3}
-      propertyPath: m_SortingLayerID
-      value: 1875862075
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
