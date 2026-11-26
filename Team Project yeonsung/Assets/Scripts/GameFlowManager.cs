@@ -13,6 +13,12 @@ public class GameFlowManager : MonoBehaviour
     [SerializeField] private string checkPointTag = "CheckPoint";
     [SerializeField] private Vector2 spawnOffset = new Vector2(0f, 0.5f);
 
+    [Header("부활 방식")]
+    // 켜면 부활할 때 씬을 다시 불러옵니다.
+    // 몬스터, 보스, 문, 감염 심장, 부서진 바닥 등 모든 기믹이 처음 상태로 돌아갑니다.
+    // (Build Profiles의 Scene List에 없는 씬에서는 자동으로 예전 방식으로 부활합니다.)
+    [SerializeField] private bool reloadSceneOnRespawn = true;
+
     [Header("패배 Canvas 프리팹")]
     [SerializeField] private Canvas defeatCanvasPrefab;
 
@@ -41,6 +47,12 @@ public class GameFlowManager : MonoBehaviour
     private float timeScaleBeforeSettings = 1f;
 
     private Vector3 initialSpawnPosition;
+
+    // 씬을 다시 불러와도 남아 있어야 하는 값들 (static)
+    private static bool reloadingForRespawn;            // 부활 때문에 씬을 다시 불러오는 중인지
+    private static bool hasSavedCheckPoint;             // 체크포인트를 밟은 적이 있는지
+    private static Vector3 savedCheckPointPosition;     // 마지막으로 밟은 체크포인트 위치
+    private static string savedCheckPointScenePath;     // 그 체크포인트가 있는 씬
     private bool isProcessing;
     private bool isChoosing;
     private bool isChanging;
@@ -54,6 +66,21 @@ public class GameFlowManager : MonoBehaviour
         }
 
         Instance = this;
+
+        // 부활 때문이 아니라 새로 씬에 들어온 경우: 체크포인트 기록을 지우고 백신 상태를 저장해 둡니다.
+        if (!reloadingForRespawn)
+        {
+            hasSavedCheckPoint = false;
+            VaccineController.SaveSnapshot();
+        }
+    }
+
+    // CheckPoint가 호출합니다. 씬을 다시 불러와도 위치를 기억하기 위해 static에 저장합니다.
+    public static void RememberCheckPoint(Vector3 position)
+    {
+        hasSavedCheckPoint = true;
+        savedCheckPointPosition = position;
+        savedCheckPointScenePath = SceneManager.GetActiveScene().path;
     }
 
     private void Start()
@@ -65,6 +92,71 @@ public class GameFlowManager : MonoBehaviour
         {
             initialSpawnPosition = player.transform.position;
         }
+
+        // 부활 때문에 다시 불러온 씬이면 플레이어를 체크포인트로 옮깁니다.
+        if (reloadingForRespawn)
+        {
+            reloadingForRespawn = false;
+
+            if (player != null)
+            {
+                PlaceAtRespawn(player);
+            }
+        }
+    }
+
+    private void PlaceAtRespawn(PlayerController player)
+    {
+        Vector3 spawnPosition = GetRespawnPosition();
+
+        player.transform.position = spawnPosition;
+
+        Rigidbody2D body = player.GetComponent<Rigidbody2D>();
+        if (body != null)
+        {
+            body.position = spawnPosition;
+            body.linearVelocity = Vector2.zero;
+        }
+
+        Physics2D.SyncTransforms();
+        player.RestoreFull();
+
+        // 카메라가 시작 위치에서 날아오지 않고 바로 플레이어 옆에서 시작하게 합니다.
+        CameraFollow follow = FindFirstObjectByType<CameraFollow>();
+        if (follow != null)
+        {
+            follow.SnapToTarget();
+        }
+    }
+
+    // 씬을 다시 불러와서 부활합니다. 성공하면 true
+    private bool TryReloadSceneForRespawn()
+    {
+        Scene scene = SceneManager.GetActiveScene();
+
+        if (scene.buildIndex < 0)
+        {
+            Debug.LogWarning(
+                "이 씬이 Build Profiles의 Scene List에 없어서 씬을 다시 불러올 수 없어요. " +
+                "예전 방식(그 자리에서 부활)으로 진행합니다.", this);
+            return false;
+        }
+
+        isChanging = true;
+        SetButtonsInteractable(false);
+
+        // 문을 열 때 썼던 백신을 이 씬에 들어올 때 상태로 되돌립니다. (문도 같이 닫히니까요)
+        VaccineController.RestoreSnapshot();
+
+        reloadingForRespawn = true;
+
+        RemoveDefeatUI();
+        isChoosing = false;
+        isProcessing = false;
+        Time.timeScale = 1f;
+
+        SceneManager.LoadScene(scene.buildIndex);
+        return true;
     }
 
     private void Update()
@@ -184,7 +276,7 @@ public class GameFlowManager : MonoBehaviour
             return false;
         }
 
-        
+
         titleButton.onClick.AddListener(GoToTitle);
 
         SetButtonsInteractable(true);
@@ -223,6 +315,12 @@ public class GameFlowManager : MonoBehaviour
     {
         if (!isChoosing || isChanging) return;
 
+        // 기본: 씬을 다시 불러와서 모든 기믹을 처음 상태로 되돌립니다.
+        if (reloadSceneOnRespawn && TryReloadSceneForRespawn())
+        {
+            return;
+        }
+
         if (playerPrefab == null ||
             !playerPrefab.activeSelf ||
             !playerPrefab.TryGetComponent<PlayerController>(
@@ -240,12 +338,8 @@ public class GameFlowManager : MonoBehaviour
 
         Vector3 spawnPosition = GetRespawnPosition();
 
-        // 씬에 놓인 플레이어 크기가 프리팹 원본과 다를 수 있어서, 죽은 플레이어 크기를 그대로 이어받습니다.
-        Vector3 spawnScale = playerPrefab.transform.localScale;
-
         if (deadPlayer != null)
         {
-            spawnScale = deadPlayer.transform.localScale;
             deadPlayer.gameObject.SetActive(false);
             Destroy(deadPlayer.gameObject);
             deadPlayer = null;
@@ -253,7 +347,6 @@ public class GameFlowManager : MonoBehaviour
 
         GameObject newPlayer = Instantiate(
             playerPrefab, spawnPosition, Quaternion.identity);
-        newPlayer.transform.localScale = spawnScale;
 
         PlayerController controller =
             newPlayer.GetComponent<PlayerController>();
@@ -300,6 +393,13 @@ public class GameFlowManager : MonoBehaviour
 
     private Vector3 GetRespawnPosition()
     {
+        // 체크포인트를 밟은 적이 있으면 그 위치 (씬을 다시 불러와도 기억합니다)
+        if (hasSavedCheckPoint &&
+            savedCheckPointScenePath == SceneManager.GetActiveScene().path)
+        {
+            return savedCheckPointPosition + (Vector3)spawnOffset;
+        }
+
         try
         {
             GameObject[] spots =

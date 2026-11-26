@@ -2,6 +2,9 @@ using UnityEngine;
 
 // 카메라가 플레이어를 부드럽게 따라갑니다.
 // 플레이어가 죽고 새로 생성돼도 자동으로 다시 찾습니다.
+// DefaultExecutionOrder(-100): 같은 LateUpdate 안에서 카메라가 가장 먼저 움직이게 합니다.
+// (배경 ParallaxTile이 카메라보다 늦게 따라와서 생기던 화면 공백을 막습니다.)
+[DefaultExecutionOrder(-100)]
 public class CameraFollow : MonoBehaviour
 {
     public Transform target;                            // 비워두면 PlayerController를 자동으로 찾음
@@ -30,6 +33,28 @@ public class CameraFollow : MonoBehaviour
 
         Vector3 goal = new Vector3(target.position.x + offset.x, target.position.y + offset.y, transform.position.z);
         transform.position = Vector3.SmoothDamp(transform.position, goal, ref velocity, smoothTime);
+
+        if (useBounds)
+        {
+            ClampToBounds();
+        }
+    }
+
+    // 부활처럼 플레이어가 멀리 순간이동했을 때, 카메라도 바로 그 옆으로 옮깁니다.
+    public void SnapToTarget()
+    {
+        if (target == null)
+        {
+            PlayerController player = FindFirstObjectByType<PlayerController>();
+            if (player == null)
+            {
+                return;
+            }
+            target = player.transform;
+        }
+
+        velocity = Vector3.zero;
+        transform.position = new Vector3(target.position.x + offset.x, target.position.y + offset.y, transform.position.z);
 
         if (useBounds)
         {

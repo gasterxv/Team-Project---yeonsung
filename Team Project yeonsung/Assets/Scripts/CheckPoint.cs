@@ -31,6 +31,9 @@ public class CheckPoint : MonoBehaviour
         }
 
         checkPointSpot = true;
+
+        // 씬을 다시 불러와도 부활 위치를 기억하도록 GameFlowManager에 위치를 저장합니다.
+        GameFlowManager.RememberCheckPoint(transform.position);
         Debug.Log("체크포인트 저장!");
     }
 
