@@ -172,6 +172,193 @@ public static class NewMapGimmickLinker
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
     }
 
+    // ---------------- 6. 몬스터·감염핵·노란 문 진짜로 ----------------
+    // 표시만 해 둔 [몬스터]·[감염핵]·[노란 문] 네모를 진짜로 바꿈 (표시 네모는 꺼 두기만 함). 다시 눌러도 이미 있으면 건너뜀.
+    // 함정 2 B(바닥 내려서면 몬스터 등장)는 나중 작업이라 그대로 둠.
+
+    const string HeartPath = "Assets/Prefabs/Object/InfectionHeart.prefab";
+
+    // 방 영역과 그 방 몬스터 종류 (x 순서대로). D = 뎅기, H = 간염. 설계 문서 기준
+    static readonly (string name, Rect area, string types)[] MonsterRooms =
+    {
+        ("초반 전투",   Rect.MinMaxRect(22, 0, 44, 14),          "D"),
+        ("중앙 연결",   Rect.MinMaxRect(69.5f, 0, 110.5f, 18),   "D"),
+        ("숨은 방",     Rect.MinMaxRect(10, -17.6f, 30, -2.1f),  "DDH"),
+        ("아래 캡슐 방", Rect.MinMaxRect(30, -27.6f, 44, -12.1f), "H"),
+        ("함정",        Rect.MinMaxRect(46, -10.1f, 58, -2.1f),  "H"),
+        ("아래방",      Rect.MinMaxRect(74, -21.5f, 92, -2.1f),  "DDH"),
+        ("감염핵",      Rect.MinMaxRect(109, -21.5f, 125, -11.5f), "H"),
+        ("보스 전",     Rect.MinMaxRect(156.5f, 0, 178, 14),     "H"),
+        ("함정 2 A",    Rect.MinMaxRect(163, -15.6f, 182, -2.1f), "DH"),
+    };
+
+    [MenuItem("Tools/새맵/6. 몬스터·감염핵·노란 문 진짜로 배치")]
+    public static void PlaceRealObjects()
+    {
+        if (EditorApplication.isPlaying || EditorSceneManager.GetActiveScene().name != SceneName)
+        {
+            EditorUtility.DisplayDialog("새맵", "Play를 끄고 '" + SceneName + "' 씬에서 실행해 주세요.", "확인");
+            return;
+        }
+        GameObject rootGo = GameObject.Find(RootName);
+        if (rootGo == null) return;
+        Transform root = rootGo.transform;
+
+        report.Clear();
+        Undo.SetCurrentGroupName("새맵 진짜 배치");
+        int group = Undo.GetCurrentGroup();
+        Physics2D.SyncTransforms();
+
+        PlaceMonsters(root);
+        PlaceHeartAndDoor(root);
+
+        Undo.CollapseUndoOperations(group);
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log("[새맵] 진짜 배치 (" + report.Count + "건). Ctrl+S로 저장해 주세요.\n- " + string.Join("\n- ", report));
+    }
+
+    static void PlaceMonsters(Transform root)
+    {
+        if (root.Find("몬스터 배치") != null) { report.Add("몬스터 배치는 이미 있어서 건너뜀"); return; }
+        EnemyBase dengue = AssetDatabase.LoadAssetAtPath<GameObject>(DenguePath)?.GetComponent<EnemyBase>();
+        EnemyBase hep = AssetDatabase.LoadAssetAtPath<GameObject>(HepatitisPath)?.GetComponent<EnemyBase>();
+
+        List<Transform> markers = new List<Transform>();
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+            if (t.name == "[몬스터]" && t.gameObject.activeSelf) markers.Add(t);
+
+        Transform parent = NewChild(root, "몬스터 배치");
+        foreach (var room in MonsterRooms)
+        {
+            List<Transform> inRoom = markers.FindAll(m => room.area.Contains(MarkerFoot(m)));
+            inRoom.Sort((a, b) => a.position.x.CompareTo(b.position.x));
+            for (int i = 0; i < inRoom.Count; i++)
+            {
+                char type = i < room.types.Length ? room.types[i] : room.types[room.types.Length - 1];
+                EnemyBase prefab = type == 'H' ? hep : dengue;
+                Vector2 foot = MarkerFoot(inRoom[i]);
+                float floor = FloorBelow(foot.x, foot.y + 1.5f) ?? foot.y;
+                GameObject spot = new GameObject("[몬스터 자리] " + (type == 'H' ? "간염" : "뎅기") + " - " + room.name);
+                Undo.RegisterCreatedObjectUndo(spot, "몬스터 자리");
+                spot.transform.SetParent(parent, false);
+                spot.transform.position = new Vector3(foot.x, floor + 0.9f, 0f);
+                spot.AddComponent<MonsterSpot>().prefab = prefab;
+                Undo.RecordObject(inRoom[i].gameObject, "표시 끄기");
+                inRoom[i].gameObject.SetActive(false);
+                report.Add(room.name + ": " + (type == 'H' ? "간염" : "뎅기") + " (" + foot.x.ToString("0.#") + ", " + floor.ToString("0.##") + ")");
+            }
+        }
+        int left = markers.FindAll(m => m.gameObject.activeSelf).Count;
+        if (left > 0) report.Add("방에 안 들어가 그대로 둔 몬스터 표시 " + left + "개 (함정 2 B 등)");
+    }
+
+    static void PlaceHeartAndDoor(Transform root)
+    {
+        if (root.Find("감염핵·노란 문") != null) { report.Add("감염핵·노란 문은 이미 있어서 건너뜀"); return; }
+        Transform parent = NewChild(root, "감염핵·노란 문");
+
+        // 노란 문: 충돌 0.8 × 4 (x 110.1~110.9, y 32.5~36.5), 그림 1.2 × 4.4
+        GameObject door = new GameObject("[노란 문] 감염된 문");
+        Undo.RegisterCreatedObjectUndo(door, "노란 문");
+        door.transform.SetParent(parent, false);
+        door.transform.position = new Vector3(110.5f, 34.5f, 0f);
+        SpriteRenderer sr = door.AddComponent<SpriteRenderer>();
+        sr.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SquarePath);
+        sr.drawMode = SpriteDrawMode.Sliced;
+        sr.size = new Vector2(1.2f, 4.4f);
+        sr.color = new Color(0.94f, 0.62f, 0.15f);
+        sr.sortingOrder = 6;
+        BoxCollider2D col = door.AddComponent<BoxCollider2D>();
+        col.size = new Vector2(0.8f, 4f);
+        door.AddComponent<InfectedDoor>();
+
+        // 문 앞(왼쪽, 수직 통로 도착 턱)에 오면 안내 글자
+        GameObject hintZone = new GameObject("안내 범위");
+        hintZone.transform.SetParent(door.transform, false);
+        hintZone.transform.position = new Vector3(107.5f, 34.5f, 0f);
+        BoxCollider2D hz = hintZone.AddComponent<BoxCollider2D>();
+        hz.isTrigger = true;
+        hz.size = new Vector2(5f, 4f);
+        GameObject hintText = new GameObject("[안내] 감염핵을 제거하자");
+        hintText.transform.SetParent(door.transform, false);
+        hintText.transform.position = new Vector3(105.3f, 37.3f, 0f);
+        hintText.transform.localScale = Vector3.one * 0.06f;
+        TextMesh tm = hintText.AddComponent<TextMesh>();
+        tm.text = "감염핵을 제거하자";
+        tm.fontSize = 48;
+        tm.anchor = TextAnchor.MiddleLeft;
+        tm.color = new Color(1f, 0.85f, 0.5f);
+        tm.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        MeshRenderer mr = hintText.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = tm.font.material;
+        mr.sortingOrder = 30;
+        hintZone.AddComponent<DoorHint>().hint = hintText;
+        report.Add("노란 문: 충돌 0.8 × 4, 그림 1.2 × 4.4 (x 110.5, y 34.5) + 안내 글자");
+
+        // 감염핵: 팀원 프리팹, [감염핵] 표시 자리 바닥 위
+        GameObject heartPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(HeartPath);
+        Transform marker = null;
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true)) if (t.name == "[감염핵]") { marker = t; break; }
+        if (heartPrefab == null) { report.Add("감염핵 프리팹을 못 찾음: " + HeartPath); }
+        else
+        {
+            Vector2 foot = marker != null ? MarkerFoot(marker) : new Vector2(121f, -21f);
+            float floor = FloorBelow(foot.x, foot.y + 1.5f) ?? foot.y;
+            GameObject heartGo = (GameObject)PrefabUtility.InstantiatePrefab(heartPrefab, parent);
+            Undo.RegisterCreatedObjectUndo(heartGo, "감염핵");
+            CircleCollider2D cc = heartGo.GetComponent<CircleCollider2D>();
+            float radius = cc != null ? cc.radius * Mathf.Abs(heartGo.transform.lossyScale.y) : 1f;
+            heartGo.transform.position = new Vector3(foot.x, floor + radius, 0f);
+            InfectionHeart heart = heartGo.GetComponent<InfectionHeart>();
+            SerializedObject so = new SerializedObject(heart);
+            so.FindProperty("bloodVesselDoor").objectReferenceValue = door;
+            so.ApplyModifiedProperties();
+
+            GameObject spot = new GameObject("[감염핵 자리] (죽으면 다시 생김)");
+            Undo.RegisterCreatedObjectUndo(spot, "감염핵 자리");
+            spot.transform.SetParent(parent, false);
+            spot.AddComponent<HeartSpot>().heart = heart;
+            if (marker != null) { Undo.RecordObject(marker.gameObject, "표시 끄기"); marker.gameObject.SetActive(false); }
+            report.Add("감염핵: (" + foot.x.ToString("0.#") + ", " + (floor + radius).ToString("0.##") + "), 부수면 노란 문 열림");
+        }
+
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name != "[노란 문]" || !t.gameObject.activeSelf) continue;
+            Undo.RecordObject(t.gameObject, "표시 끄기");
+            t.gameObject.SetActive(false);
+        }
+    }
+
+    static Transform NewChild(Transform root, string name)
+    {
+        GameObject g = new GameObject(name);
+        Undo.RegisterCreatedObjectUndo(g, name);
+        g.transform.SetParent(root, false);
+        return g.transform;
+    }
+
+    // 표시 네모의 바닥 쪽 가운데
+    static Vector2 MarkerFoot(Transform m)
+    {
+        SpriteRenderer s = m.GetComponent<SpriteRenderer>();
+        if (s != null) return new Vector2(s.bounds.center.x, s.bounds.min.y);
+        return m.position;
+    }
+
+    // 위에서 아래로 내려가며 처음 만나는 땅 윗면 (트리거·몬스터 표시 무시)
+    static float? FloorBelow(float x, float fromY)
+    {
+        RaycastHit2D[] hits = Physics2D.RaycastAll(new Vector2(x, fromY), Vector2.down, 30f);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        foreach (RaycastHit2D h in hits)
+        {
+            if (h.collider == null || h.collider.isTrigger || h.distance <= 0f) continue;
+            return h.point.y;
+        }
+        return null;
+    }
+
     // ---------------- 규칙 (초기화·더블점프) ----------------
 
     static void EnsureRules(Transform root)

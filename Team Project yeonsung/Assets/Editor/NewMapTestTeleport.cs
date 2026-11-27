@@ -17,6 +17,16 @@ public static class NewMapTestTeleport
     [MenuItem("Tools/새맵/테스트 이동/수직 통로 아래")]
     static void Vertical() { Move(new Vector2(98f, 1f)); }
 
+    [MenuItem("Tools/새맵/테스트 이동/노란 문 앞 (수직 통로 도착 턱)")]
+    static void YellowDoor() { Move(new Vector2(107f, 33.5f)); }
+
+    [MenuItem("Tools/새맵/테스트 이동/감염핵 앞")]
+    static void HeartFront() { Move(new Vector2(117.5f, -20f)); }
+
+    [MenuItem("Tools/새맵/테스트 이동/노란 문 앞 (수직 통로 도착 턱)", true)]
+    [MenuItem("Tools/새맵/테스트 이동/감염핵 앞", true)]
+    static bool OnlyInPlay2() { return EditorApplication.isPlaying; }
+
     [MenuItem("Tools/새맵/테스트 이동/웨이브 방 왼쪽 턱")]
     static void WaveRoomLedge() { Move(new Vector2(93.5f, -19f)); }
 
