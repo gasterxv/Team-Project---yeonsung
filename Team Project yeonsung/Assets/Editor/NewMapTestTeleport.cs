@@ -23,6 +23,20 @@ public static class NewMapTestTeleport
     [MenuItem("Tools/새맵/테스트 이동/감염핵 앞")]
     static void HeartFront() { Move(new Vector2(117.5f, -20f)); }
 
+    [MenuItem("Tools/새맵/테스트 이동/숨은 방")]
+    static void HiddenRoom() { Move(new Vector2(14f, -16f)); }
+
+    [MenuItem("Tools/새맵/테스트 이동/6 캡슐 방")]
+    static void CapsuleRoom6() { Move(new Vector2(10f, 12.5f)); }
+
+    [MenuItem("Tools/새맵/테스트 이동/5 위쪽 혈류 복도 끝")]
+    static void Corridor5End() { Move(new Vector2(155f, 34f)); }
+
+    [MenuItem("Tools/새맵/테스트 이동/숨은 방", true)]
+    [MenuItem("Tools/새맵/테스트 이동/6 캡슐 방", true)]
+    [MenuItem("Tools/새맵/테스트 이동/5 위쪽 혈류 복도 끝", true)]
+    static bool OnlyInPlay4() { return EditorApplication.isPlaying; }
+
     [MenuItem("Tools/새맵/테스트 이동/아래방 위 (C 내려찍기 시험)")]
     static void AboveLowerRoom() { Move(new Vector2(79.5f, 2f)); }
 
