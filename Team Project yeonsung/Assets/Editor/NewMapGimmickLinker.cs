@@ -149,6 +149,29 @@ public static class NewMapGimmickLinker
         Debug.Log("[새맵] 충돌 크기 맞추기 (" + report.Count + "건). Ctrl+S로 저장해 주세요.\n- " + string.Join("\n- ", report));
     }
 
+    // 웨이브 감염벽 두 개를 같은 크기로: 충돌 가로 0.5 × 세로 7.4, 그림 가로 0.6 × 세로 7.4 (천장 -13.6 ~ 바닥 -21).
+    // 가로 위치(x)는 그대로 두고 높이만 맞춤.
+    [MenuItem("Tools/새맵/5. 웨이브 감염벽 두 개 크기 같게")]
+    public static void EqualizeWaveWalls()
+    {
+        if (EditorApplication.isPlaying) return;
+        WaveRoom room = Object.FindFirstObjectByType<WaveRoom>(FindObjectsInactive.Include);
+        if (room == null || room.barriers == null) return;
+        const float top = -13.6f, bottom = -21f;
+        foreach (GameObject b in room.barriers)
+        {
+            if (b == null) continue;
+            Undo.RecordObject(b.transform, "감염벽 크기");
+            b.transform.position = new Vector3(b.transform.position.x, (top + bottom) * 0.5f, b.transform.position.z);
+            BoxCollider2D c = b.GetComponent<BoxCollider2D>();
+            if (c != null) { Undo.RecordObject(c, "감염벽 크기"); c.size = new Vector2(0.5f, top - bottom); c.offset = Vector2.zero; }
+            SpriteRenderer s = b.GetComponent<SpriteRenderer>();
+            if (s != null) { Undo.RecordObject(s, "감염벽 크기"); s.size = new Vector2(0.6f, top - bottom); }
+            Debug.Log("[새맵] " + b.name + ": 충돌 0.5 × 7.4, 그림 0.6 × 7.4 (x " + b.transform.position.x.ToString("0.##") + ")");
+        }
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+    }
+
     // ---------------- 규칙 (초기화·더블점프) ----------------
 
     static void EnsureRules(Transform root)

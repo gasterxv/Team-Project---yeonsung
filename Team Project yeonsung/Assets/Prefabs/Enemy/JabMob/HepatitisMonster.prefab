@@ -232,13 +232,13 @@ MonoBehaviour:
   verticalDespawnDistance: 0
   attackBodyCollider: {fileID: 5706122096685027681}
   contactDamage: 10
-  attackHorizontalSpeed: 3
-  attackJumpSpeed: 5
+  attackHorizontalSpeed: 5.5
+  attackJumpSpeed: 5.5
   attackGroundLayers:
     serializedVersion: 2
     m_Bits: 0
-  maxAttackAirTime: 1
-  attackStartGap: 0.4
+  maxAttackAirTime: 1.6
+  attackStartGap: 4
   attackCooldown: 1.5
   idleStateName: JabMob2Idle
   walkStateName: JabMob2Walk

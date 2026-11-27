@@ -90,10 +90,14 @@ public static class NewMapDiagnostics
     }
 
     [MenuItem("Tools/새맵/진단: 웨이브 방 주변 오브젝트 적기")]
-    static void DumpWaveArea()
+    static void DumpWaveArea() { DumpArea("웨이브 방 주변", Rect.MinMaxRect(86f, -34f, 128f, -8f)); }
+
+    [MenuItem("Tools/새맵/진단: 노란 문 주변 오브젝트 적기")]
+    static void DumpDoorArea() { DumpArea("노란 문 주변", Rect.MinMaxRect(104f, 28f, 116f, 44f)); }
+
+    static void DumpArea(string label, Rect area)
     {
-        Rect area = Rect.MinMaxRect(86f, -34f, 128f, -8f);
-        StringBuilder sb = new StringBuilder("[새맵 진단] 웨이브 방 주변 (x 86~128, y -34~-8)\n");
+        StringBuilder sb = new StringBuilder("[새맵 진단] " + label + " (x " + area.xMin + "~" + area.xMax + ", y " + area.yMin + "~" + area.yMax + ")\n");
         int n = 0;
         foreach (Transform t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
         {
@@ -104,9 +108,11 @@ public static class NewMapDiagnostics
             else if (s != null) b = s.bounds;
             else continue;
             if (b.max.x < area.xMin || b.min.x > area.xMax || b.max.y < area.yMin || b.min.y > area.yMax) continue;
-            sb.AppendFormat("{0} | x {1:0.##}~{2:0.##} y {3:0.##}~{4:0.##} | 켜짐={5} 부모={6} 콜라이더={7}\n",
+            if (c != null && (!c.enabled || !c.gameObject.activeInHierarchy) && c is BoxCollider2D bc) b = ComputeColliderBounds(bc);
+            string spr = s != null ? string.Format(" | 그림 x {0:0.##}~{1:0.##} y {2:0.##}~{3:0.##}", s.bounds.min.x, s.bounds.max.x, s.bounds.min.y, s.bounds.max.y) : "";
+            sb.AppendFormat("{0} | x {1:0.##}~{2:0.##} y {3:0.##}~{4:0.##} | 켜짐={5} 부모={6} 콜라이더={7}{8}\n",
                 t.name, b.min.x, b.max.x, b.min.y, b.max.y, t.gameObject.activeInHierarchy,
-                t.parent != null ? t.parent.name : "-", c != null ? (c.isTrigger ? "트리거" : "있음") : "없음");
+                t.parent != null ? t.parent.name : "-", c != null ? (c.isTrigger ? "트리거" : "있음") : "없음", spr);
             n++;
         }
         sb.Append("총 " + n + "개");

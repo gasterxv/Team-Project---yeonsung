@@ -14,6 +14,42 @@ public static class NewMapMonsterTuning
         "Assets/Prefabs/Enemy/JabMob/HepatitisMonster.prefab",
     };
 
+    // 간염(고기말이) 몸통박치기 점프: 약 3칸 → 약 6칸, 붙어야(0.4) 뛰던 것을 4칸 떨어져서부터 뛰게.
+    // 비행시간 = 2 × 점프힘 / 중력(9.81) ≈ 1.12초, 거리 = 옆속도 × 비행시간 ≈ 6.2칸, 최고 높이 ≈ 1.5칸
+    [MenuItem("Tools/새맵/몬스터/간염 점프 거리 늘리기 (프리팹)")]
+    static void SetHepatitisJump()
+    {
+        const string path = "Assets/Prefabs/Enemy/JabMob/HepatitisMonster.prefab";
+        GameObject root = PrefabUtility.LoadPrefabContents(path);
+        try
+        {
+            EnemyBase e = root.GetComponent<EnemyBase>();
+            if (e == null) { Debug.LogWarning("[새맵] 간염 프리팹에서 몬스터 스크립트를 못 찾았어요."); return; }
+            SerializedObject so = new SerializedObject(e);
+            string log = "";
+            log += Set(so, "attackHorizontalSpeed", 5.5f);
+            log += Set(so, "attackJumpSpeed", 5.5f);
+            log += Set(so, "maxAttackAirTime", 1.6f);
+            log += Set(so, "attackStartGap", 4f);
+            so.ApplyModifiedPropertiesWithoutUndo();
+            PrefabUtility.SaveAsPrefabAsset(root, path);
+            Debug.Log("[새맵] 간염 점프:" + log);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+    }
+
+    static string Set(SerializedObject so, string name, float value)
+    {
+        SerializedProperty p = so.FindProperty(name);
+        if (p == null) return " (" + name + " 없음)";
+        string s = " " + name + " " + p.floatValue.ToString("0.##") + "→" + value.ToString("0.##");
+        p.floatValue = value;
+        return s;
+    }
+
     [MenuItem("Tools/새맵/몬스터/인식 거리 8로 맞추기 (프리팹)")]
     static void SetRecognition()
     {
