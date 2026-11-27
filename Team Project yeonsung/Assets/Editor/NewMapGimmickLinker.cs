@@ -63,6 +63,7 @@ public static class NewMapGimmickLinker
             }
         }
 
+        EnsureWaveRoom(root);
         TurnOffStrayOldMap();
 
         Undo.CollapseUndoOperations(group);
@@ -120,6 +121,68 @@ public static class NewMapGimmickLinker
         if (Object.FindFirstObjectByType<DoubleJumpAbility>(FindObjectsInactive.Include) == null)
             Undo.AddComponent<DoubleJumpAbility>(rules);
         report.Add("규칙 오브젝트 추가 (사망 초기화 + 더블점프)");
+    }
+
+    // ---------------- 웨이브 방 (92~109, 바닥 -31.6) ----------------
+
+    const string DenguePath = "Assets/Prefabs/Enemy/JabMob/DengueMonster.prefab";
+    const string HepatitisPath = "Assets/Prefabs/Enemy/JabMob/HepatitisMonster.prefab";
+    const string SquarePath = "Assets/Map/Square.png";
+
+    static void EnsureWaveRoom(Transform root)
+    {
+        if (Object.FindFirstObjectByType<WaveRoom>(FindObjectsInactive.Include) != null) return;
+
+        Transform parent = root;
+        foreach (Transform t in root) if (t.name.StartsWith("기믹")) { parent = t; break; }
+
+        // 방 바닥 영역에 내려서면 잠김
+        GameObject roomGo = new GameObject("[웨이브 방]");
+        Undo.RegisterCreatedObjectUndo(roomGo, "웨이브 방");
+        Undo.SetTransformParent(roomGo.transform, parent, "웨이브 방");
+        roomGo.transform.position = new Vector3(100.5f, -30.6f, 0f);
+        BoxCollider2D zone = roomGo.AddComponent<BoxCollider2D>();
+        zone.isTrigger = true;
+        zone.size = new Vector2(10f, 2f);   // x 95.5~105.5, y -31.6~-29.6
+
+        // 막: 바닥에서 양쪽 턱 위로 다시 못 올라가게 턱 안쪽 끝에 세움 (천장 -13.6까지)
+        GameObject left = Barrier(roomGo.transform, "[웨이브 막] 왼쪽", 95f, 95.5f, -20.1f, -13.6f);
+        GameObject right = Barrier(roomGo.transform, "[웨이브 막] 오른쪽", 105.5f, 106f, -21f, -13.6f);
+
+        WaveRoom room = roomGo.AddComponent<WaveRoom>();
+        room.denguePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(DenguePath)?.GetComponent<EnemyBase>();
+        room.hepatitisPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(HepatitisPath)?.GetComponent<EnemyBase>();
+        room.spawnPoints = new[] { new Vector2(96f, -30.8f), new Vector2(100.5f, -30.8f), new Vector2(105f, -30.8f) };
+        room.barriers = new[] { left, right };
+        if (room.denguePrefab == null || room.hepatitisPrefab == null)
+            Debug.LogWarning("[새맵] 웨이브 방: 몬스터 프리팹을 못 찾았어요. Inspector에서 넣어 주세요.");
+
+        // 예전 표시 네모는 이제 필요 없으니 꺼 둠 (지우지 않음)
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name != "[웨이브 소환 3곳]" || !t.gameObject.activeSelf) continue;
+            Undo.RecordObject(t.gameObject, "웨이브 표시 끄기");
+            t.gameObject.SetActive(false);
+        }
+        report.Add("웨이브 방 추가 (3웨이브: 뎅기3 → 간염3 → 뎅기2+간염2, 바닥에 내려서면 잠김)");
+    }
+
+    static GameObject Barrier(Transform parent, string name, float x0, float x1, float y0, float y1)
+    {
+        GameObject go = new GameObject(name);
+        Undo.RegisterCreatedObjectUndo(go, name);
+        go.transform.SetParent(parent, false);
+        go.transform.position = new Vector3((x0 + x1) * 0.5f, (y0 + y1) * 0.5f, 0f);
+        Vector2 size = new Vector2(x1 - x0, y1 - y0);
+        SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SquarePath);
+        sr.drawMode = SpriteDrawMode.Sliced;
+        sr.size = size;
+        sr.color = new Color(0.93f, 0.58f, 0.69f, 0.75f);
+        sr.sortingOrder = 4;
+        BoxCollider2D col = go.AddComponent<BoxCollider2D>();
+        col.size = size;
+        return go;
     }
 
     // ---------------- 기믹 ----------------

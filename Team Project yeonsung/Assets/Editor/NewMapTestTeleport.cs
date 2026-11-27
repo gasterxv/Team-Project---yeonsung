@@ -17,6 +17,25 @@ public static class NewMapTestTeleport
     [MenuItem("Tools/새맵/테스트 이동/수직 통로 아래")]
     static void Vertical() { Move(new Vector2(98f, 1f)); }
 
+    [MenuItem("Tools/새맵/테스트 이동/웨이브 방 왼쪽 턱")]
+    static void WaveRoomLedge() { Move(new Vector2(93.5f, -19f)); }
+
+    // 테스트용: 화면의 살아 있는 몬스터를 모두 한 번에 처치 (진짜 피격·사망 처리를 거침)
+    [MenuItem("Tools/새맵/테스트 이동/살아 있는 몬스터 모두 처치")]
+    static void KillAll()
+    {
+        int n = 0;
+        foreach (EnemyBase e in Object.FindObjectsByType<EnemyBase>(FindObjectsSortMode.None))
+        {
+            if (e == null || e.IsDead) continue;
+            e.NotifyPlayerAttack(99999);
+            n++;
+        }
+        Debug.Log("[새맵 테스트] 몬스터 " + n + "마리 처치");
+    }
+
+    [MenuItem("Tools/새맵/테스트 이동/살아 있는 몬스터 모두 처치", true)]
+    [MenuItem("Tools/새맵/테스트 이동/웨이브 방 왼쪽 턱", true)]
     [MenuItem("Tools/새맵/테스트 이동/큰 C 튕김 항체 위 (보스 전)", true)]
     [MenuItem("Tools/새맵/테스트 이동/C 튕김 항체 O1 위 (중후반)", true)]
     [MenuItem("Tools/새맵/테스트 이동/항체 칸 (더블점프 항체)", true)]
