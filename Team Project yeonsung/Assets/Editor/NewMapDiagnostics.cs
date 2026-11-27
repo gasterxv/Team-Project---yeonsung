@@ -103,6 +103,43 @@ public static class NewMapDiagnostics
         Debug.Log("[새맵 진단] 끝 조각 " + n + "개 " + (state == true ? "보이기" : "숨기기"));
     }
 
+    // 배경(원경) 오브젝트 구조·그리는 층 적기 (읽기만)
+    [MenuItem("Tools/새맵/진단: 배경 구조 적기")]
+    static void DumpBackground()
+    {
+        StringBuilder sb = new StringBuilder("[새맵 진단] 배경\n");
+        foreach (ParallaxTile p in Object.FindObjectsByType<ParallaxTile>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            Transform t = p.transform;
+            string chain = ""; Transform c = t;
+            while (c != null) { chain = c.name + (c.gameObject.activeSelf ? "" : "(꺼짐)") + (chain == "" ? "" : " / ") + chain; c = c.parent; }
+            sb.AppendFormat("ParallaxTile {0} | parallax {1} period {2} | 위치 {3}\n", chain, p.parallax, p.period, t.position.ToString("0.##"));
+            Transform top = t; while (top.parent != null && top.parent.GetComponent<ParallaxTile>() == null && !top.parent.name.StartsWith("Map")) top = top.parent;
+            foreach (SpriteRenderer r in t.GetComponentsInChildren<SpriteRenderer>(true))
+                sb.AppendFormat("   그림 {0} | 층 {1} 순서 {2} | z {3} | 크기 {4} | 켜짐 {5}\n", r.name, r.sortingLayerName, r.sortingOrder,
+                    r.transform.position.z.ToString("0.##"), r.bounds.size.ToString("0.#"), r.gameObject.activeInHierarchy);
+        }
+        // 부모 묶음 안에 배경 말고 뭐가 있는지
+        foreach (ParallaxTile p in Object.FindObjectsByType<ParallaxTile>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            Transform parent = p.transform.parent;
+            if (parent == null) continue;
+            sb.Append("부모 '" + parent.name + "' 자식: ");
+            foreach (Transform ch in parent) sb.Append(ch.name + (ch.gameObject.activeSelf ? "" : "(꺼짐)") + ", ");
+            sb.Append("\n");
+            if (parent.parent != null)
+            {
+                sb.Append("  그 위 '" + parent.parent.name + "' 자식: ");
+                foreach (Transform ch in parent.parent) sb.Append(ch.name + (ch.gameObject.activeSelf ? "" : "(꺼짐)") + ", ");
+                sb.Append("\n");
+            }
+            break;
+        }
+        Camera cam = Camera.main;
+        if (cam != null) sb.AppendFormat("카메라: clear {0}, 배경색 {1}, z {2}\n", cam.clearFlags, cam.backgroundColor, cam.transform.position.z);
+        Debug.Log(sb.ToString());
+    }
+
     [MenuItem("Tools/새맵/진단: 웨이브 방 주변 오브젝트 적기")]
     static void DumpWaveArea() { DumpArea("웨이브 방 주변", Rect.MinMaxRect(86f, -34f, 128f, -8f)); }
 

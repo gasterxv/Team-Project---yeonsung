@@ -203,6 +203,30 @@ public static class NewMapObjectArt
 
     static Sprite Load(string name) { return AssetDatabase.LoadAssetAtPath<Sprite>(Dir + name); }
 
+    // 메인씬과 같은 원경(뒷배경)을 켬. 테스트 씬에는 메인씬에서 복사된 '원경_배경'이 이미 있는데
+    // 예전 맵을 끌 때 같이 꺼져 있었음 → 그 묶음만 다시 켬 (예전 맵의 다른 것은 그대로 꺼 둠)
+    // 원경은 카메라를 따라 끝없이 반복되므로(ParallaxTile) 새 맵 어디서나 보임. 그리는 순서 -1000·-1001 (땅 그림은 그 앞)
+    [MenuItem("Tools/새맵/11. 메인씬 원경(뒷배경) 켜기")]
+    public static void EnableBackground()
+    {
+        if (EditorApplication.isPlaying || EditorSceneManager.GetActiveScene().name != "메인씬 테스트") return;
+        int n = 0;
+        foreach (ParallaxTile p in Object.FindObjectsByType<ParallaxTile>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            for (Transform t = p.transform; t != null; t = t.parent)
+            {
+                if (t.gameObject.activeSelf) continue;
+                if (t.GetComponentsInChildren<PlayerController>(true).Length > 0) break;   // 안전: 플레이어가 든 묶음은 건드리지 않음
+                Undo.RecordObject(t.gameObject, "원경 켜기");
+                t.gameObject.SetActive(true);
+                Debug.Log("[새맵] 원경 켬: " + t.name);
+                n++;
+            }
+        }
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log("[새맵] 원경(뒷배경) 켜기: " + n + "개 켬. Ctrl+S로 저장해 주세요.");
+    }
+
     static void Setup(string name, Vector2 pivot)
     {
         TextureImporter ti = AssetImporter.GetAtPath(Dir + name) as TextureImporter;

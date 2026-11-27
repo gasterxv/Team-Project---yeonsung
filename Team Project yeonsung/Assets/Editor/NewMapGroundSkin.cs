@@ -47,7 +47,9 @@ public static class NewMapGroundSkin
 
     const float Cell = 0.1f;
     static readonly Color FillColor = new Color(0.11f, 0.035f, 0.04f);   // 띠 아래쪽 어두운 색
-    const int FillOrder = -4000, WallOrder = -3000, CeilingOrder = -2000, FloorOrder = -1000;
+    // 그리는 순서: 메인씬 원경(배경)이 Default 층 -1000·-1001이라 그보다 앞(-900~)에 둠
+    // 땅 안쪽 -900 < 벽 -850~ < 천장 -700~ < 바닥 -600~ (줄마다 2칸씩: 벽 최대 75줄, 천장 50줄, 바닥 이후 여유)
+    const int FillOrder = -900, WallOrder = -850, CeilingOrder = -700, FloorOrder = -600;
 
     static bool[,] solid;
     static float minX, minY;
@@ -128,6 +130,8 @@ public static class NewMapGroundSkin
 
         Undo.CollapseUndoOperations(group);
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        if (nextWall > CeilingOrder || nextCeiling > FloorOrder || nextFloor > -10)
+            Debug.LogWarning("[새맵] 땅 그림: 줄이 너무 많아 그리는 순서 범위가 겹쳐요 (벽 " + nextWall + ", 천장 " + nextCeiling + ", 바닥 " + nextFloor + "). 순서 범위를 넓혀 주세요.");
         Debug.Log("[새맵] 땅 그림: 바닥 " + floors + "줄, 천장 " + ceilings + "줄, 벽 " + walls + "줄, 그림 조각 " + pieces
                   + "개, 얇은 곳 자르기 " + masks + "개. Ctrl+S로 저장해 주세요.");
     }
