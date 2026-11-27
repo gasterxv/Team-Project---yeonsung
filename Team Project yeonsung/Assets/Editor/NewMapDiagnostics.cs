@@ -33,6 +33,63 @@ public static class NewMapDiagnostics
         Debug.Log(sb.ToString());
     }
 
+    // 새 맵의 모든 충돌 블록·주요 오브젝트를 파일(프로젝트 Temp/newmap_dump.txt)로 적기 (읽기만)
+    [MenuItem("Tools/새맵/진단: 새 맵 전체 파일로 적기")]
+    static void DumpAllToFile()
+    {
+        StringBuilder sb = new StringBuilder();
+        GameObject root = GameObject.Find("새맵_회색상자");
+        if (root != null)
+        {
+            foreach (Collider2D c in root.GetComponentsInChildren<Collider2D>(true))
+            {
+                Bounds b = c.bounds;
+                if ((!c.enabled || !c.gameObject.activeInHierarchy) && c is BoxCollider2D bc) b = ComputeColliderBounds(bc);
+                string comps = "";
+                foreach (MonoBehaviour m in c.GetComponents<MonoBehaviour>()) if (m != null) comps += m.GetType().Name + ",";
+                sb.AppendFormat("C\t{0}\t{1}\t{2:0.##}\t{3:0.##}\t{4:0.##}\t{5:0.##}\ttag={6}\tlayer={7}\ttrig={8}\ton={9}\t{10}\n",
+                    Path(c.transform), c.GetType().Name, b.min.x, b.max.x, b.min.y, b.max.y, c.tag, LayerMask.LayerToName(c.gameObject.layer),
+                    c.isTrigger, c.enabled && c.gameObject.activeInHierarchy, comps);
+            }
+        }
+        foreach (MonoBehaviour m in Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (m == null) continue;
+            string n = m.GetType().Name;
+            if (n == "CheckPoint" || n == "MonsterSpot" || n == "EnemyBase" || m is EnemyBase || n == "InfectedDoor" || n == "HeartSpot" || n == "InfectionHeart"
+                || n == "WaveRoom" || n == "AmbushZone" || n == "CameraFollow" || n == "PlayerController" || n == "BounceAntibody" || n == "WhiteCellFloor" || n == "WhiteCellWall")
+                sb.AppendFormat("O\t{0}\t{1}\t{2}\t켜짐={3}\n", n, Path(m.transform), m.transform.position.ToString("0.##"), m.gameObject.activeInHierarchy);
+        }
+        foreach (Transform t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            if (t.name.StartsWith("[안내]"))
+                sb.AppendFormat("T\t{0}\t{1}\n", t.name, t.position.ToString("0.##"));
+        string file = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath), "Temp", "newmap_dump.txt");
+        System.IO.File.WriteAllText(file, sb.ToString(), Encoding.UTF8);
+        Debug.Log("[새맵 진단] 파일로 적음: " + file);
+    }
+
+    // Scene 화면을 Temp/frame.txt에 적힌 영역(xMin yMin xMax yMax)으로 옮김 (읽기만)
+    [MenuItem("Tools/새맵/진단: Scene 화면 옮기기 (Temp-frame.txt)")]
+    static void FrameFromFile()
+    {
+        string file = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath), "Temp", "frame.txt");
+        if (!System.IO.File.Exists(file)) { Debug.LogWarning("[새맵 진단] frame.txt 없음"); return; }
+        string[] p = System.IO.File.ReadAllText(file).Trim().Split(' ');
+        float x0 = float.Parse(p[0]), y0 = float.Parse(p[1]), x1 = float.Parse(p[2]), y1 = float.Parse(p[3]);
+        SceneView sv = SceneView.lastActiveSceneView;
+        if (sv == null) return;
+        sv.in2DMode = true;
+        sv.Frame(new Bounds(new Vector3((x0 + x1) / 2f, (y0 + y1) / 2f, 0f), new Vector3(x1 - x0, y1 - y0, 1f)), true);
+        sv.Repaint();
+    }
+
+    static string Path(Transform t)
+    {
+        string s = t.name;
+        while (t.parent != null) { t = t.parent; s = t.name + "/" + s; }
+        return s;
+    }
+
     static Bounds ComputeColliderBounds(BoxCollider2D c)
     {
         Vector3 center = c.transform.TransformPoint(c.offset);

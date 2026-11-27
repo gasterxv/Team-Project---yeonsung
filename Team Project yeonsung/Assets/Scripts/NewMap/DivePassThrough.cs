@@ -55,6 +55,31 @@ public class DivePassThrough : MonoBehaviour
         instance.slamTime = 0f;
     }
 
+    // 깬 구멍(hole) 안으로 몸을 맞춘 뒤 내려찍기를 이어감.
+    // 구멍 가장자리에서 깨면 몸이 옆 땅 모서리에 걸쳐 잠깐 멈추던 문제 해결.
+    public static void Slam(PlayerController p, Bounds hole)
+    {
+        if (p == null) return;
+        Rigidbody2D rb = p.GetComponent<Rigidbody2D>();
+        Collider2D body = null;
+        foreach (Collider2D c in p.GetComponents<Collider2D>()) if (!c.isTrigger) { body = c; break; }
+        if (rb != null && body != null)
+        {
+            float half = body.bounds.extents.x + 0.03f;
+            float offset = body.bounds.center.x - rb.position.x;   // 몸 중심과 위치 차이
+            float minX = hole.min.x + half, maxX = hole.max.x - half;
+            float center = body.bounds.center.x;
+            float target = minX <= maxX ? Mathf.Clamp(center, minX, maxX) : hole.center.x;
+            if (!Mathf.Approximately(target, center))
+            {
+                Vector2 pos = new Vector2(target - offset, rb.position.y);
+                rb.position = pos;
+                p.transform.position = new Vector3(pos.x, pos.y, p.transform.position.z);
+            }
+        }
+        Slam(p);
+    }
+
     void FixedUpdate()
     {
         if (player == null || !player.gameObject.activeInHierarchy)

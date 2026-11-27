@@ -76,6 +76,37 @@ public static class NewMapTestTeleport
     [MenuItem("Tools/새맵/테스트 이동/수직 통로 아래", true)]
     static bool OnlyInPlay() { return EditorApplication.isPlaying; }
 
+    // 테스트용: 프로젝트 Temp/teleport.txt 에 적힌 "x y" 위치로 이동
+    [MenuItem("Tools/새맵/테스트 이동/파일 위치로 (Temp-teleport.txt)")]
+    static void FromFile()
+    {
+        string file = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath), "Temp", "teleport.txt");
+        if (!System.IO.File.Exists(file)) { Debug.LogWarning("[새맵 테스트] teleport.txt 없음"); return; }
+        string[] p = System.IO.File.ReadAllText(file).Trim().Split(' ');
+        Move(new Vector2(float.Parse(p[0]), float.Parse(p[1])));
+    }
+
+    [MenuItem("Tools/새맵/테스트 이동/파일 위치로 (Temp-teleport.txt)", true)]
+    static bool OnlyInPlay5() { return EditorApplication.isPlaying; }
+
+    // 테스트용: 플레이어 땅·내려찍기 상태와 지금 닿아 있는 것들을 적기
+    [MenuItem("Tools/새맵/테스트 이동/플레이어 상태 적기")]
+    static void DumpPlayer()
+    {
+        PlayerController player = Object.FindFirstObjectByType<PlayerController>();
+        if (player == null) return;
+        Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+        string s = "[새맵 테스트] " + PlayerStateReader.DebugState(player) + " 위치 " + player.transform.position.ToString("0.##") + " 속도 " + rb.linearVelocity.ToString("0.##") + "\n";
+        ContactPoint2D[] cs = new ContactPoint2D[16];
+        int n = rb.GetContacts(cs);
+        for (int i = 0; i < n; i++)
+            s += "  닿음: " + (cs[i].collider != null ? cs[i].collider.name + "(" + cs[i].collider.tag + ")" : "-") + " / " + (cs[i].otherCollider != null ? cs[i].otherCollider.name : "-") + " 법선 " + cs[i].normal.ToString("0.##") + " 점 " + cs[i].point.ToString("0.##") + "\n";
+        Debug.Log(s);
+    }
+
+    [MenuItem("Tools/새맵/테스트 이동/플레이어 상태 적기", true)]
+    static bool OnlyInPlay6() { return EditorApplication.isPlaying; }
+
     static void Move(Vector2 pos)
     {
         PlayerController player = Object.FindFirstObjectByType<PlayerController>();

@@ -1045,11 +1045,47 @@ public class PlayerController : MonoBehaviour
     }
 
     // 땅에서 떨어지면 isGrounded를 false로
+    // (버그 수정) 땅 블록 두 개에 걸쳐 서 있다가 한쪽에서만 떨어져도 '공중'이 되어 점프가 안 되던 문제
+    // → 아직 다른 땅에 닿아 있으면 그대로 땅 위로 둡니다.
     void OnCollisionExit2D(Collision2D collision)
     {
         if (collision.gameObject.CompareTag("Ground"))
         {
-            isGrounded = false;
+            isGrounded = IsStillTouchingGround(collision.collider);
         }
+    }
+
+    // (버그 수정) 땅 판정이 어긋나 땅 위에 서 있는데도 '공중'으로 남아 있으면, 땅을 밟고 있는 동안 바로잡습니다.
+    void OnCollisionStay2D(Collision2D collision)
+    {
+        if (isGrounded || isDiving || !collision.gameObject.CompareTag("Ground")) return;
+        if (rb.linearVelocity.y > 0.1f) return;   // 막 점프한 순간은 제외
+        foreach (ContactPoint2D contact in collision.contacts)
+        {
+            if (contact.normal.y > 0.5f)
+            {
+                isGrounded = true;
+                airDashUsed = false;
+                return;
+            }
+        }
+    }
+
+    private readonly ContactPoint2D[] groundContacts = new ContactPoint2D[16];
+
+    bool IsStillTouchingGround(Collider2D leaving)
+    {
+        if (rb == null) return false;
+        int count = rb.GetContacts(groundContacts);
+        for (int i = 0; i < count; i++)
+        {
+            Collider2D other = groundContacts[i].collider;
+            if (other != null && other.attachedRigidbody == rb) other = groundContacts[i].otherCollider;
+            if (other == null || other == leaving || other.isTrigger) continue;
+            // 발밑에 닿아 있는 땅만 (옆 벽에 닿은 것은 제외)
+            float feetY = col != null ? col.bounds.min.y : transform.position.y;
+            if (other.CompareTag("Ground") && groundContacts[i].point.y <= feetY + 0.1f) return true;
+        }
+        return false;
     }
 }

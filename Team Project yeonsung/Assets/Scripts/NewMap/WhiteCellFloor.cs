@@ -22,8 +22,9 @@ public class WhiteCellFloor : ResettableBehaviour
         PlayerController player = PlayerStateReader.FindPlayer(collision.collider);
         if (player == null || !PlayerStateReader.IsDiving(player)) return;
         if (!PlayerStateReader.IsFromTop(collision, col)) return;
+        Bounds hole = col.bounds;
         SetBroken(true);
-        DivePassThrough.Slam(player);   // 멈추지 않고 가장 아래 바닥까지 계속 내려찍음
+        DivePassThrough.Slam(player, hole);   // 구멍 안으로 몸을 맞추고, 멈추지 않고 가장 아래 바닥까지 계속 내려찍음
     }
 
     // 낙하공격 히트박스가 먼저 닿는 경우도 처리
@@ -33,8 +34,12 @@ public class WhiteCellFloor : ResettableBehaviour
         PlayerHitbox hitbox = other.GetComponentInParent<PlayerHitbox>();
         if (hitbox != null && PlayerStateReader.IsFallingHitbox(hitbox))
         {
+            Bounds hole = col.bounds;
             SetBroken(true);
-            DivePassThrough.Slam(hitbox.GetComponentInParent<PlayerController>());
+            // 낙하 히트박스는 플레이어 자식이 아님(월드에 생성) → 플레이어를 직접 찾음
+            PlayerController p = hitbox.GetComponentInParent<PlayerController>();
+            if (p == null) p = FindFirstObjectByType<PlayerController>();
+            DivePassThrough.Slam(p, hole);
         }
     }
 

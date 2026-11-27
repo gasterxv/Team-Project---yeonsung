@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: -2141721429914866284}
   - component: {fileID: 5706122096685027681}
   - component: {fileID: 3253520488661432831}
+  - component: {fileID: 315724500749397662}
   m_Layer: 8
   m_Name: HepatitisMonster
   m_TagString: Untagged
@@ -247,6 +248,22 @@ MonoBehaviour:
   deathStateName: JabMob2Die
   deathCleanupDelay: 2
   damageRecoveryDelay: 0.5
+--- !u!114 &315724500749397662
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7770212493554130551}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f70ac4830faa7cc4a947f28caac7c3e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxHeight: 5
+  maxHorizontal: 5
+  extraHeight: 1
+  maxSideSpeed: 5.5
 --- !u!1001 &1022966709402534905
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -338,6 +355,10 @@ PrefabInstance:
       value: 40
       objectReference: {fileID: 0}
     - target: {fileID: 4235538556238563046, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4235538556238563046, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
       propertyPath: m_Material
       value: 
       objectReference: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
@@ -412,14 +433,17 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8555836731667553362, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6474581007043835232}
   m_SourcePrefab: {fileID: 100100000, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
 --- !u!114 &1473976500014293510 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: -8579422804087719624, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
   m_PrefabInstance: {fileID: 2061339915804154686}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 7649128217837537132}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c2fd9ee0571e1f042ba9a5da9acec940, type: 3}
@@ -430,6 +454,48 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8646965505022723880, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
   m_PrefabInstance: {fileID: 2061339915804154686}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &7649128217837537132 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8555836731667553362, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
+  m_PrefabInstance: {fileID: 2061339915804154686}
+  m_PrefabAsset: {fileID: 0}
+--- !u!70 &6474581007043835232
+CapsuleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7649128217837537132}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 6200000, guid: fd666d02dfc791842b60267b852c354e, type: 2}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 1
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: -0.5771494, y: 15}
+  m_Size: {x: 80, y: 110}
+  m_Direction: 0
 --- !u!1001 &2949200153381650030
 PrefabInstance:
   m_ObjectHideFlags: 0
