@@ -93,6 +93,62 @@ public static class NewMapGimmickLinker
         Debug.Log("[새맵] 이 씬에서 '부활 때 씬 다시 불러오기'를 껐어요. 죽으면 마지막 체크포인트 이후만 되돌아가요. Ctrl+S로 저장해 주세요.");
     }
 
+    // Rect 도구로 블록 그림 크기만 바꾸면 콜라이더는 그대로라서, 캐릭터가 땅 속에 잠겨 보이거나 떠 보입니다.
+    // 새맵_회색상자 안의 모든 블록(움직이는 발판 제외)의 충돌 크기를 그림 크기에 맞춥니다.
+    // + 웨이브 방 바닥(땅 (1))을 감염핵 방 바닥(-21)과 같은 높이로 맞춰 턱을 없앱니다.
+    [MenuItem("Tools/새맵/4. 블록 충돌 크기를 그림에 맞추기")]
+    public static void FitCollidersToSprites()
+    {
+        if (EditorApplication.isPlaying || EditorSceneManager.GetActiveScene().name != SceneName)
+        {
+            EditorUtility.DisplayDialog("새맵", "Play를 끄고 '" + SceneName + "' 씬에서 실행해 주세요.", "확인");
+            return;
+        }
+        GameObject rootGo = GameObject.Find(RootName);
+        if (rootGo == null) return;
+
+        report.Clear();
+        Undo.SetCurrentGroupName("새맵 충돌 크기 맞추기");
+        int group = Undo.GetCurrentGroup();
+
+        // 1) 웨이브 방 바닥 높이를 감염핵 방 바닥과 맞춤 (그림 윗면을 -21로)
+        const float FloorTop = -21f;
+        foreach (Transform t in rootGo.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name != "땅 (1)") continue;
+            SpriteRenderer sr = t.GetComponent<SpriteRenderer>();
+            if (sr == null || sr.drawMode == SpriteDrawMode.Simple) continue;
+            float top = sr.bounds.max.y;
+            float diff = top - FloorTop;
+            if (Mathf.Abs(diff) < 0.01f) continue;
+            Undo.RecordObject(sr, "바닥 높이");
+            Undo.RecordObject(t, "바닥 높이");
+            sr.size = new Vector2(sr.size.x, sr.size.y - diff / Mathf.Abs(t.lossyScale.y));   // 아래쪽은 그대로, 윗면만 내림
+            t.position = new Vector3(t.position.x, t.position.y - diff * 0.5f, t.position.z);
+            report.Add("웨이브 방 바닥 윗면 " + top.ToString("0.##") + " → " + FloorTop + " (감염핵 방과 같은 높이)");
+        }
+
+        // 2) 충돌 크기 = 그림 크기
+        foreach (BoxCollider2D c in rootGo.GetComponentsInChildren<BoxCollider2D>(true))
+        {
+            SpriteRenderer s = c.GetComponent<SpriteRenderer>();
+            if (s == null || c.isTrigger || s.drawMode == SpriteDrawMode.Simple) continue;
+            if (c.GetComponent<MovingPlatform>() != null) continue;   // 움직이는 발판은 Play 중 위치가 달라서 제외
+            Vector2 want = s.size;
+            Vector2 wantOffset = Vector2.zero;   // 슬라이스 그림은 가운데 기준
+            if (Vector2.Distance(c.size, want) < 0.01f && Vector2.Distance(c.offset, wantOffset) < 0.01f) continue;
+            Undo.RecordObject(c, "충돌 크기");
+            report.Add(c.name + ": 충돌 " + c.size.ToString("0.##") + " → " + want.ToString("0.##")
+                + " (위치 " + c.transform.position.x.ToString("0.#") + ", " + c.transform.position.y.ToString("0.#") + ")");
+            c.size = want;
+            c.offset = wantOffset;
+        }
+
+        Undo.CollapseUndoOperations(group);
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log("[새맵] 충돌 크기 맞추기 (" + report.Count + "건). Ctrl+S로 저장해 주세요.\n- " + string.Join("\n- ", report));
+    }
+
     // ---------------- 규칙 (초기화·더블점프) ----------------
 
     static void EnsureRules(Transform root)

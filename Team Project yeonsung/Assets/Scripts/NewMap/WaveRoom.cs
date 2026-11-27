@@ -61,9 +61,21 @@ public class WaveRoom : ResettableBehaviour
         if (center == null) { Debug.LogWarning("[새맵] 웨이브 방: 바닥을 못 찾아서 기존 값을 써요."); return; }
 
         floorY = center.Value;
-        // 잠김 영역: 바닥 위 2칸 (오브젝트는 안 옮기고 콜라이더 위치만 → 자식인 막은 그대로)
-        float worldCenterY = floorY + zone.size.y * 0.5f;
-        zone.offset = new Vector2(zone.offset.x, (worldCenterY - transform.position.y) / Mathf.Max(0.0001f, transform.lossyScale.y));
+        // 잠김 영역: 바닥 위 2칸, 가로는 양쪽 막보다 1칸 안쪽부터
+        // (바닥이 평평하면 막 바로 위에서 잠겨 플레이어가 막에 밀려 밖에 갇히는 문제 방지)
+        // 오브젝트는 안 옮기고 콜라이더 위치·크기만 → 자식인 막은 그대로
+        float x0 = transform.position.x - zone.size.x * 0.5f, x1 = transform.position.x + zone.size.x * 0.5f;
+        if (barriers != null && barriers.Length >= 2 && barriers[0] != null && barriers[1] != null)
+        {
+            Bounds l = BarrierBounds(barriers[0]), r = BarrierBounds(barriers[1]);
+            if (l.center.x > r.center.x) { Bounds tmp = l; l = r; r = tmp; }
+            x0 = l.max.x + 1f;
+            x1 = r.min.x - 1f;
+        }
+        float sx = Mathf.Max(0.0001f, Mathf.Abs(transform.lossyScale.x)), sy = Mathf.Max(0.0001f, Mathf.Abs(transform.lossyScale.y));
+        zone.size = new Vector2(Mathf.Max(1f, x1 - x0) / sx, zone.size.y);
+        float worldCenterY = floorY + zone.size.y * sy * 0.5f;
+        zone.offset = new Vector2(((x0 + x1) * 0.5f - transform.position.x) / sx, (worldCenterY - transform.position.y) / sy);
         // 소환 위치: 각 x에서 바닥을 다시 찾아 그 위 0.8
         for (int i = 0; i < spawnPoints.Length; i++)
         {
@@ -87,6 +99,14 @@ public class WaveRoom : ResettableBehaviour
             return h.point.y;
         }
         return null;
+    }
+
+    static Bounds BarrierBounds(GameObject b)
+    {
+        SpriteRenderer s = b.GetComponent<SpriteRenderer>();
+        if (s != null) return s.bounds;
+        Collider2D c = b.GetComponent<Collider2D>();
+        return c != null ? c.bounds : new Bounds(b.transform.position, Vector3.zero);
     }
 
     bool IsBarrier(Collider2D c)
