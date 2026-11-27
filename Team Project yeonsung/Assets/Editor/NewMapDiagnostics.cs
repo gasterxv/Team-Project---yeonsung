@@ -40,6 +40,55 @@ public static class NewMapDiagnostics
         return new Bounds(center, new Vector3(Mathf.Abs(size.x), Mathf.Abs(size.y), 0f));
     }
 
+    // 몬스터 프리팹의 콜라이더·센서·이동/점프 값을 적습니다 (읽기만 함)
+    [MenuItem("Tools/새맵/진단: 몬스터 프리팹 인식 범위 적기")]
+    static void DumpMonsters()
+    {
+        string[] paths =
+        {
+            "Assets/Prefabs/Enemy/JabMob/DengueMonster.prefab",
+            "Assets/Prefabs/Enemy/JabMob/HepatitisMonster.prefab",
+        };
+        StringBuilder sb = new StringBuilder("[새맵 진단] 몬스터 프리팹\n");
+        foreach (string p in paths)
+        {
+            GameObject go = AssetDatabase.LoadAssetAtPath<GameObject>(p);
+            if (go == null) { sb.Append(p + " 없음\n"); continue; }
+            EnemyBase e = go.GetComponent<EnemyBase>();
+            sb.Append("== " + go.name + " (" + (e != null ? e.GetType().Name : "?") + ")\n");
+            if (e != null)
+            {
+                SerializedObject so = new SerializedObject(e);
+                foreach (string f in new[] { "maxChaseDistance", "chaseSpeed", "MonsterWalkSpeed", "patrolRadius",
+                                             "attackHorizontalSpeed", "attackJumpSpeed", "attackStartGap", "recognitionSensor", "attackRangeSensor" })
+                {
+                    SerializedProperty sp = so.FindProperty(f);
+                    if (sp == null) continue;
+                    string v = sp.propertyType == SerializedPropertyType.ObjectReference
+                        ? (sp.objectReferenceValue != null ? sp.objectReferenceValue.name + " (" + Path(((Component)sp.objectReferenceValue).transform, go.transform) + ")" : "없음")
+                        : sp.propertyType == SerializedPropertyType.Float ? sp.floatValue.ToString("0.##") : sp.intValue.ToString();
+                    sb.Append("   " + f + " = " + v + "\n");
+                }
+            }
+            foreach (Collider2D c in go.GetComponentsInChildren<Collider2D>(true))
+            {
+                EnemySensor s = c.GetComponent<EnemySensor>();
+                string size = c is BoxCollider2D b ? b.size.ToString("0.##") : c is CapsuleCollider2D cc ? cc.size.ToString("0.##") : c is CircleCollider2D ci ? "r " + ci.radius.ToString("0.##") : "?";
+                sb.AppendFormat("   콜라이더 {0} [{1}] 트리거={2} 크기={3} offset={4} 크기조절={5} 센서={6}\n",
+                    Path(c.transform, go.transform), c.GetType().Name, c.isTrigger, size, c.offset.ToString("0.##"),
+                    c.transform.lossyScale.ToString("0.##"), s != null ? new SerializedObject(s).FindProperty("sensorType").enumNames[new SerializedObject(s).FindProperty("sensorType").enumValueIndex] : "-");
+            }
+        }
+        Debug.Log(sb.ToString());
+    }
+
+    static string Path(Transform t, Transform root)
+    {
+        string p = t.name;
+        while (t.parent != null && t != root) { t = t.parent; p = t.name + "/" + p; }
+        return p;
+    }
+
     [MenuItem("Tools/새맵/진단: 웨이브 방 주변 오브젝트 적기")]
     static void DumpWaveArea()
     {

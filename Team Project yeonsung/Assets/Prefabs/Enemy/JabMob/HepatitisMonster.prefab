@@ -238,6 +238,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   maxAttackAirTime: 1
+  attackStartGap: 0.4
   attackCooldown: 1.5
   idleStateName: JabMob2Idle
   walkStateName: JabMob2Walk
@@ -334,7 +335,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4235538556238563046, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
       propertyPath: m_Radius
-      value: 18.851566
+      value: 40
       objectReference: {fileID: 0}
     - target: {fileID: 4235538556238563046, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
       propertyPath: m_Material

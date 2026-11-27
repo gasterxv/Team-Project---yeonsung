@@ -114,6 +114,8 @@ MonoBehaviour:
   spriteFacesRight: 0
   initialFacingDirection: -1
   chaseFacingInterval: 2
+  chaseStopGap: 0.2
+  chaseResumeGap: 0.35
   recognitionSensor: {fileID: 1473976500014293510}
   attackRangeSensor: {fileID: 3565083628368622379}
   MonsterCurrentHP: 1
@@ -333,6 +335,10 @@ PrefabInstance:
     - target: {fileID: -8579422804087719624, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
       propertyPath: playerAttackTag
       value: Player
+      objectReference: {fileID: 0}
+    - target: {fileID: 4235538556238563046, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
+      propertyPath: m_Radius
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 4235538556238563046, guid: 517f41698bd952646ad45c684116f0ba, type: 3}
       propertyPath: m_Material
