@@ -13,8 +13,16 @@ public class BounceAntibody : MonoBehaviour
     [SerializeField] float waitLandingMax = 0.5f;   // 낙하공격이 끝날 때까지 기다리는 최대 시간 (착지 멈춤은 바로 끝내므로 보통 0.05초 안)
     [SerializeField] bool showDebugLog = false;         // 켜면 Console에 닿을 때·튕길 때 상태를 찍음 (문제 찾을 때만)
 
+    [Header("그림 (비워 두면 이 오브젝트의 네모 그림을 씀)")]
+    [Tooltip("실제로 보이는 그림 (자식). 충돌 크기와 따로 크기를 맞추기 위해 자식에 둠")]
+    public SpriteRenderer visual;
+    [Tooltip("C로 내려찍어 튕기는 순간 잠깐 보여 줄 눌린 그림")]
+    public Sprite pressedSprite;
+    public float pressedTime = 0.18f;
+
     BoxCollider2D col;
     SpriteRenderer sprite;
+    Sprite normalSprite;
     Color baseColor;
     bool popped;
     bool bouncing;
@@ -22,7 +30,8 @@ public class BounceAntibody : MonoBehaviour
     void Awake()
     {
         col = GetComponent<BoxCollider2D>();
-        sprite = GetComponent<SpriteRenderer>();
+        sprite = visual != null ? visual : GetComponent<SpriteRenderer>();
+        if (sprite != null) normalSprite = sprite.sprite;
         if (sprite != null) baseColor = sprite.color;
         if (showDebugLog)
             Debug.Log("[튕김 항체 진단] 시작: " + name + " 힘=" + bounceSpeed + " 콜라이더=" + col.enabled
@@ -92,7 +101,11 @@ public class BounceAntibody : MonoBehaviour
                 + " 중력=" + rb.gravityScale);
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, bounceSpeed);
             if (DoubleJumpAbility.Instance != null) DoubleJumpAbility.Instance.RefreshAirJump();
-            if (sprite != null) sprite.color = Color.white;
+            if (sprite != null)
+            {
+                if (pressedSprite != null) sprite.sprite = pressedSprite;   // 눌린 그림
+                else sprite.color = Color.white;                            // 그림이 없으면 하얗게 번쩍
+            }
             if (showDebugLog)
             {
                 for (int i = 1; i <= 3; i++)
@@ -104,8 +117,8 @@ public class BounceAntibody : MonoBehaviour
             }
         }
 
-        yield return new WaitForSeconds(0.15f);
-        if (sprite != null) sprite.color = baseColor;
+        yield return new WaitForSeconds(pressedSprite != null ? pressedTime : 0.15f);
+        if (sprite != null) { sprite.color = baseColor; sprite.sprite = normalSprite; }
         bouncing = false;
     }
 
