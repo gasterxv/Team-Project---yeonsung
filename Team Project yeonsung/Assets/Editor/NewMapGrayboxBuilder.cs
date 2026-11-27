@@ -8,8 +8,10 @@ using UnityEngine;
 // 메뉴: Tools > 새맵 > 1. 회색 상자 맵 만들기
 //
 // - 방(빈 공간)을 적어 두고, 그 바깥을 땅 블록으로 자동으로 채웁니다.
-// - 실제로 동작: 땅·벽, 발판, 부서지는 발판(BreakablePlatform), 혈소판(MovingPlatform), 혈류(BloodFlow), 체크포인트(CheckPoint)
-// - 표시만 (지나갈 수 있음): 백혈구 벽 X, 백혈구 바닥 C, 노란 문, 보스방 문, C 튕김 항체, 항체, 나노 캡슐, 감염핵, 보스, 몬스터
+// - 실제로 동작: 땅·벽, 발판, 부서지는 발판(BreakablePlatform), 혈소판(MovingPlatform), 혈류(BloodFlow), 체크포인트(CheckPoint),
+//   백혈구 벽 X(WhiteCellWall), 백혈구 바닥 C(WhiteCellFloor), 항체+더블점프(AntibodyPickup, DoubleJumpAbility),
+//   C 튕김 항체(BounceAntibody), 사망 시 초기화(CheckpointResetManager)
+// - 표시만 (지나갈 수 있음): 노란 문, 보스방 문, 나노 캡슐, 감염핵, 보스, 몬스터
 // - 예전 맵 묶음은 지우지 않고 꺼 두기만 합니다. 다시 실행하면 이 도구가 만든 '새맵_회색상자'만 새로 만듭니다.
 public static class NewMapGrayboxBuilder
 {
@@ -102,7 +104,7 @@ public static class NewMapGrayboxBuilder
     // 부서지는 발판 (중심 x, 윗면 y, 복구 초)
     static readonly float[,] BreakPlats =
     {
-        { 101.5f, 18, 20 }, { 96, 21, 20 }, { 101.5f, 24, 20 }, { 96, 27, 20 }, { 101.5f, 30, 20 },   // 수직 통로
+        { 101.5f, 18, 10 }, { 96, 21, 10 }, { 101.5f, 24, 10 }, { 96, 27, 10 }, { 101.5f, 30, 10 },   // 수직 통로
         { 149.5f, 1.5f, 5 }, { 146, 3, 5 }, { 142.5f, 4.5f, 5 },                                         // 중후반 무너지는 계단
         { 184.5f, 3, 20 }, { 190.5f, 3, 20 },                                                            // 보스방
     };
@@ -144,10 +146,12 @@ public static class NewMapGrayboxBuilder
         root = new GameObject(RootName).transform;
         Undo.RegisterCreatedObjectUndo(root.gameObject, "새맵 회색 상자");
 
+        BuildRules(Group("규칙 (초기화·더블점프)"));
         BuildGround(Group("땅"));
         BuildPlatforms(Group("발판"));
         BuildBlood(Group("혈류"));
         BuildCheckpoints(Group("체크포인트"));
+        BuildGimmicks(Group("기믹 (X벽·C바닥·항체)"));
         BuildMarkers(Group("표시 (나중에 진짜로 바꿀 것)"));
         BuildHints(Group("안내 글자"));
         SetupPlayerAndCamera();
@@ -302,33 +306,73 @@ public static class NewMapGrayboxBuilder
         CheckPoint cp = go.AddComponent<CheckPoint>();
         cp.activateOnTouch = true;
         cp.checkPointSpot = startSpot;
+        go.AddComponent<CheckpointSaveTrigger>();   // 밟으면 맵 상태 저장
+    }
+
+    // ---------------- 규칙 ----------------
+
+    static void BuildRules(Transform parent)
+    {
+        GameObject go = new GameObject("규칙");
+        go.transform.SetParent(parent, false);
+        go.AddComponent<CheckpointResetManager>();
+        go.AddComponent<DoubleJumpAbility>();
+    }
+
+    // ---------------- 기믹 (실제로 동작) ----------------
+
+    static void BuildGimmicks(Transform parent)
+    {
+        // X 백혈구 벽: 통로 높이 4, 폭 1. X 한 번에 부서짐. 땅 태그 아님(벽 옆면에 붙어 착지 판정 안 되게)
+        Color xWall = new Color(0.93f, 0.58f, 0.69f);
+        float[,] walls =
+        {
+            { 22, 0, 4 }, { 44, 0, 4 }, { 69.5f, 0, 4 },
+            { 30, -17.6f, -13.6f }, { 92, -20.1f, -16.1f }, { 109, -21, -17 }, { 182, -15.6f, -11.6f },
+        };
+        for (int i = 0; i < walls.GetLength(0); i++)
+        {
+            float x = walls[i, 0];
+            GameObject w = Block(parent, "[X 백혈구 벽]", x - 0.5f, x + 0.5f, walls[i, 1], walls[i, 2], xWall, 4);
+            w.AddComponent<WhiteCellWall>();
+        }
+
+        // C 백혈구 바닥: 아래층 구멍을 막음. 위에서 C로 내려찍어야 부서짐
+        Color cFloor = new Color(0.86f, 0.84f, 0.8f);
+        foreach (float h in new[] { 18f, 49f, 78f, 172f })
+        {
+            GameObject f = Block(parent, "[C 백혈구 바닥]", h, h + 3, -2.1f, 0, cFloor, 4);
+            MakeGround(f);
+            f.AddComponent<WhiteCellFloor>();
+        }
+
+        // 항체 = 더블점프
+        GameObject ab = Block(parent, "[항체 = 더블점프]", 112.6f, 113.4f, 0.1f, 0.9f, new Color(0.39f, 0.6f, 0.13f), 9);
+        ab.GetComponent<BoxCollider2D>().isTrigger = true;
+        ab.AddComponent<AntibodyPickup>();
+
+        // C 튕김 항체 (1 x 1 네모, 그림은 나중에 Sprite만 교체)
+        Orb(parent, "[C 튕김 항체 O1]", 124.5f, 9, 13);
+        Orb(parent, "[C 튕김 항체 O2]", 115.5f, 5.5f, 13);
+        Orb(parent, "[큰 C 튕김 항체]", 162, 2.5f, 27);
+    }
+
+    static void Orb(Transform parent, string name, float cx, float cy, float speed)
+    {
+        GameObject o = Block(parent, name, cx - 0.5f, cx + 0.5f, cy - 0.5f, cy + 0.5f, new Color(0.11f, 0.62f, 0.46f), 9);
+        MakeGround(o);   // 낙하공격이 '착지'로 끝나야 튕길 수 있음
+        BounceAntibody b = o.AddComponent<BounceAntibody>();
+        b.bounceSpeed = speed;
+        b.respawnTime = 2f;
     }
 
     // ---------------- 표시 (지나갈 수 있음) ----------------
 
     static void BuildMarkers(Transform parent)
     {
-        Color xWall = new Color(0.93f, 0.58f, 0.69f, 0.6f);
-        Marker(parent, "[X 백혈구 벽] 시작|초반", 21.5f, 22.5f, 0, 4, xWall);
-        Marker(parent, "[X 백혈구 벽] 초반|완충", 43.5f, 44.5f, 0, 4, xWall);
-        Marker(parent, "[X 백혈구 벽] 완충|중앙", 69, 70, 0, 4, xWall);
-        Marker(parent, "[X 백혈구 벽] 숨은 방|캡슐 방", 29.5f, 30.5f, -17.6f, -13.6f, xWall);
-        Marker(parent, "[X 백혈구 벽] 아래방|웨이브", 91.5f, 92.5f, -20.1f, -16.1f, xWall);
-        Marker(parent, "[X 백혈구 벽] 웨이브|감염핵", 108.5f, 109.5f, -21, -17, xWall);
-        Marker(parent, "[X 백혈구 벽] 함정2 A|B", 181.5f, 182.5f, -15.6f, -11.6f, xWall);
-
-        Color cFloor = new Color(0.37f, 0.37f, 0.35f, 0.6f);
-        foreach (float h in new[] { 18f, 49f, 78f, 172f }) Marker(parent, "[C 백혈구 바닥] " + h, h, h + 3, -2.1f, 0, cFloor);
-
         Marker(parent, "[노란 문]", 110.1f, 110.9f, 32.5f, 36.5f, new Color(0.94f, 0.62f, 0.15f, 0.7f));
         Marker(parent, "[보스방 입구 문]", 178.3f, 178.7f, 0, 6, new Color(0.22f, 0.54f, 0.87f, 0.6f));
         Marker(parent, "[출구 문]", 196.5f, 196.9f, 0, 4, new Color(0.2f, 0.2f, 0.2f, 0.6f));
-
-        Color orb = new Color(0.11f, 0.62f, 0.46f, 0.9f);
-        Marker(parent, "[C 튕김 항체 O1] 힘 13", 124, 125, 8.5f, 9.5f, orb);
-        Marker(parent, "[C 튕김 항체 O2] 힘 13", 115, 116, 5, 6, orb);
-        Marker(parent, "[큰 C 튕김 항체] 힘 27", 161.5f, 162.5f, 2, 3, orb);
-        Marker(parent, "[항체 = 더블점프]", 112.6f, 113.4f, 0.1f, 0.9f, new Color(0.39f, 0.6f, 0.13f, 0.9f));
 
         Color cap = new Color(0.22f, 0.54f, 0.87f, 0.9f);
         Marker(parent, "[나노 캡슐 1]", 9.6f, 10.4f, 22.1f, 22.9f, cap);
