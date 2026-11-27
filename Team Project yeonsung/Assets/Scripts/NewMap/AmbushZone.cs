@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// 매복 구역 (함정 2 B). 플레이어가 이 트리거(방 바닥)에 들어오면 잠깐 바닥에 보라 얼룩이 생기고 몬스터가 튀어나옴.
+// 매복 구역 (함정 2 B). 플레이어가 이 트리거(방 바닥)에 들어오면 잠깐 바닥에 보라 얼룩이 생기고 몬스터가 튀어나옴. (글자 알림 없음)
 // 보상은 없음. 한 번 나온 상태는 체크포인트에 저장되고, 저장 전에 죽으면 다시 매복 전으로 돌아감.
 [RequireComponent(typeof(BoxCollider2D))]
 public class AmbushZone : ResettableBehaviour
@@ -30,7 +30,6 @@ public class AmbushZone : ResettableBehaviour
 
     IEnumerator Ambush()
     {
-        ScreenAnnouncer.ShowDanger("함정이다!", "", 1.2f);
         foreach (MonsterSpot s in spots)
             if (s != null) blobs.Add(SpawnWarningBlob.Create(new Vector2(s.transform.position.x, floorY), warnTime));
         yield return new WaitForSeconds(warnTime);
