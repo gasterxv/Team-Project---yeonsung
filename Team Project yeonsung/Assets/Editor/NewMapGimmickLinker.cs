@@ -330,6 +330,85 @@ public static class NewMapGimmickLinker
         }
     }
 
+    // ---------------- 7. C 발판 통과 + 함정 2 B 매복 ----------------
+    [MenuItem("Tools/새맵/7. C 내려찍기 발판 통과 + 함정 2 B 매복")]
+    public static void AddDiveAndAmbush()
+    {
+        if (EditorApplication.isPlaying || EditorSceneManager.GetActiveScene().name != SceneName)
+        {
+            EditorUtility.DisplayDialog("새맵", "Play를 끄고 '" + SceneName + "' 씬에서 실행해 주세요.", "확인");
+            return;
+        }
+        GameObject rootGo = GameObject.Find(RootName);
+        if (rootGo == null) return;
+        Transform root = rootGo.transform;
+        report.Clear();
+        Undo.SetCurrentGroupName("새맵 발판 통과·매복");
+        int group = Undo.GetCurrentGroup();
+        Physics2D.SyncTransforms();
+
+        // C 발판 통과: 규칙 오브젝트에 붙임
+        CheckpointResetManager rules = Object.FindFirstObjectByType<CheckpointResetManager>(FindObjectsInactive.Include);
+        if (rules != null && rules.GetComponent<DivePassThrough>() == null)
+        {
+            Undo.AddComponent<DivePassThrough>(rules.gameObject);
+            report.Add("C 내려찍기 중 발판 통과 (규칙 오브젝트에 추가)");
+        }
+
+        // 함정 2 B: 남아 있는 [몬스터] 표시 → 매복 몬스터 자리 (x 순서: 뎅기, 뎅기, 간염)
+        if (root.Find("함정 2 B 매복") == null)
+        {
+            Rect area = Rect.MinMaxRect(182f, -23f, 201f, -8.6f);
+            List<Transform> markers = new List<Transform>();
+            foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+                if (t.name == "[몬스터]" && t.gameObject.activeSelf && area.Contains(MarkerFoot(t))) markers.Add(t);
+            markers.Sort((a, b) => a.position.x.CompareTo(b.position.x));
+            if (markers.Count > 0)
+            {
+                EnemyBase dengue = AssetDatabase.LoadAssetAtPath<GameObject>(DenguePath)?.GetComponent<EnemyBase>();
+                EnemyBase hep = AssetDatabase.LoadAssetAtPath<GameObject>(HepatitisPath)?.GetComponent<EnemyBase>();
+                Transform parent = NewChild(root, "함정 2 B 매복");
+                List<MonsterSpot> spots = new List<MonsterSpot>();
+                float floorY = -22.6f;
+                const string types = "DDH";
+                for (int i = 0; i < markers.Count; i++)
+                {
+                    char type = i < types.Length ? types[i] : 'D';
+                    Vector2 foot = MarkerFoot(markers[i]);
+                    float floor = FloorBelow(foot.x, foot.y + 1.5f) ?? foot.y;
+                    floorY = floor;
+                    GameObject spot = new GameObject("[매복 몬스터 자리] " + (type == 'H' ? "간염" : "뎅기"));
+                    Undo.RegisterCreatedObjectUndo(spot, "매복 자리");
+                    spot.transform.SetParent(parent, false);
+                    spot.transform.position = new Vector3(foot.x, floor + 0.9f, 0f);
+                    MonsterSpot ms = spot.AddComponent<MonsterSpot>();
+                    ms.prefab = type == 'H' ? hep : dengue;
+                    ms.waitForAmbush = true;
+                    spots.Add(ms);
+                    Undo.RecordObject(markers[i].gameObject, "표시 끄기");
+                    markers[i].gameObject.SetActive(false);
+                }
+                // 매복 구역: 방 바닥 (들어오는 턱 185 오른쪽부터 끝까지), 바닥 위 2칸
+                GameObject zone = new GameObject("[함정 2 B] 매복 구역 (바닥에 내려서면 등장)");
+                Undo.RegisterCreatedObjectUndo(zone, "매복 구역");
+                zone.transform.SetParent(parent, false);
+                zone.transform.position = new Vector3(193.5f, floorY + 1f, 0f);
+                BoxCollider2D bc = zone.AddComponent<BoxCollider2D>();
+                bc.isTrigger = true;
+                bc.size = new Vector2(15f, 2f);
+                AmbushZone az = zone.AddComponent<AmbushZone>();
+                az.spots = spots.ToArray();
+                az.floorY = floorY;
+                report.Add("함정 2 B 매복: 몬스터 " + spots.Count + "마리 (바닥 " + floorY.ToString("0.##") + "에 내려서면 등장)");
+            }
+            else report.Add("함정 2 B 몬스터 표시를 못 찾음");
+        }
+
+        Undo.CollapseUndoOperations(group);
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log("[새맵] 발판 통과·매복 (" + report.Count + "건). Ctrl+S로 저장해 주세요.\n- " + string.Join("\n- ", report));
+    }
+
     static Transform NewChild(Transform root, string name)
     {
         GameObject g = new GameObject(name);
