@@ -50,6 +50,7 @@ public class WaveRoom : ResettableBehaviour
         base.Awake();
         GetComponent<BoxCollider2D>().isTrigger = true;
         if (autoFitFloor) FitToFloor();   // 막 콜라이더를 끄기 전에 (막에 레이가 걸리지 않게 막은 건너뜀)
+        BuildBarrierShapes();             // 막의 원래 크기를 기억해 두고 자라나는 그림을 만듦
         SetBarriers(false);
     }
 
@@ -120,7 +121,7 @@ public class WaveRoom : ResettableBehaviour
     {
         if (state != RoomState.Ready || PlayerStateReader.FindPlayer(other) == null) return;
         state = RoomState.Running;
-        SetBarriers(true);
+        AnimateBarriers(true);
         running = StartCoroutine(RunWaves());
         Debug.Log("[새맵] 웨이브 방 잠김: " + waves.Length + "웨이브 시작");
     }
@@ -169,7 +170,7 @@ public class WaveRoom : ResettableBehaviour
         }
 
         state = RoomState.Cleared;
-        SetBarriers(false);
+        AnimateBarriers(false);
         running = null;
         ScreenAnnouncer.SetAlarm(false);
         ScreenAnnouncer.Show("정화 완료!", "막이 사라졌다", 2.2f);
@@ -216,14 +217,98 @@ public class WaveRoom : ResettableBehaviour
         return alive.Count > 0;
     }
 
-    void SetBarriers(bool on)
+    // ---------------- 막 = 감염된 벽 ----------------
+    // 평소엔 안 보임(그냥 벽). 잠기면 위쪽 벽에서 감염된 벽이 아래로 자라나 통로를 막고,
+    // 클리어하면 다시 위로 줄어들어 벽 속으로 들어감. 충돌은 잠기는 순간 바로 켜지고, 풀리는 순간 바로 꺼짐.
+    [Tooltip("감염된 벽이 자라나거나 줄어드는 시간 (초)")]
+    public float barrierGrowTime = 0.45f;
+    [Tooltip("감염된 벽 색 (두 색 사이를 꿈틀거리며 오감). 그림이 생기면 흰색으로 두면 그림 색 그대로")]
+    public Color infectedColorA = new Color(0.55f, 0.18f, 0.78f, 0.95f);
+    public Color infectedColorB = new Color(0.95f, 0.42f, 0.72f, 0.95f);
+
+    class BarrierShape
     {
+        public SpriteRenderer source;   // 원래 막 그림 (안 보이게 꺼 둠, 크기 기준)
+        public SpriteRenderer visual;   // 실제로 자라나는 그림 (실행할 때 만든 자식)
+        public Collider2D[] cols;
+        public float top, fullHeight, width;
+    }
+
+    readonly List<BarrierShape> shapes = new List<BarrierShape>();
+    float barrierAmount;     // 0 = 숨김, 1 = 바닥까지 다 막음
+    bool barrierClosed;
+    float barrierTime;
+
+    void BuildBarrierShapes()
+    {
+        shapes.Clear();
         if (barriers == null) return;
         foreach (GameObject b in barriers)
         {
             if (b == null) continue;
-            foreach (Collider2D c in b.GetComponents<Collider2D>()) c.enabled = on;
-            foreach (SpriteRenderer s in b.GetComponents<SpriteRenderer>()) s.enabled = on;
+            SpriteRenderer src = b.GetComponent<SpriteRenderer>();
+            BarrierShape s = new BarrierShape { source = src, cols = b.GetComponents<Collider2D>() };
+            Bounds bb = BarrierBounds(b);
+            s.top = bb.max.y;
+            s.fullHeight = bb.size.y;
+            s.width = bb.size.x;
+            if (src != null)
+            {
+                GameObject v = new GameObject("감염된 벽 (자라나는 그림)");
+                v.transform.SetParent(b.transform, false);
+                s.visual = v.AddComponent<SpriteRenderer>();
+                s.visual.sprite = src.sprite;
+                s.visual.drawMode = SpriteDrawMode.Sliced;
+                s.visual.sortingLayerID = src.sortingLayerID;
+                s.visual.sortingOrder = src.sortingOrder + 1;
+                src.enabled = false;
+            }
+            shapes.Add(s);
+        }
+    }
+
+    // 즉시 열기/닫기 (시작할 때, 죽어서 되돌릴 때)
+    void SetBarriers(bool on)
+    {
+        barrierClosed = on;
+        barrierAmount = on ? 1f : 0f;
+        foreach (BarrierShape s in shapes) foreach (Collider2D c in s.cols) if (c != null) c.enabled = on;
+        ApplyBarrierShape();
+    }
+
+    // 애니메이션으로 열기/닫기 (잠길 때, 클리어할 때)
+    void AnimateBarriers(bool close)
+    {
+        barrierClosed = close;
+        foreach (BarrierShape s in shapes) foreach (Collider2D c in s.cols) if (c != null) c.enabled = close;
+    }
+
+    void Update()
+    {
+        float target = barrierClosed ? 1f : 0f;
+        if (!Mathf.Approximately(barrierAmount, target) || barrierAmount > 0f)
+        {
+            barrierAmount = Mathf.MoveTowards(barrierAmount, target, Time.deltaTime / Mathf.Max(0.01f, barrierGrowTime));
+            barrierTime += Time.deltaTime;
+            ApplyBarrierShape();
+        }
+    }
+
+    void ApplyBarrierShape()
+    {
+        float k = barrierClosed ? 1f - (1f - barrierAmount) * (1f - barrierAmount) : barrierAmount * barrierAmount;   // 부드럽게
+        float pulse = 0.5f + 0.5f * Mathf.Sin(barrierTime * 5f);
+        foreach (BarrierShape s in shapes)
+        {
+            if (s.visual == null) continue;
+            float h = s.fullHeight * k;
+            s.visual.enabled = h > 0.02f;
+            if (!s.visual.enabled) continue;
+            float wobble = 1f + 0.12f * Mathf.Sin(barrierTime * 7f + s.top);   // 살아 있는 듯 꿈틀
+            s.visual.size = new Vector2(s.width * wobble, h);
+            Vector3 p = s.visual.transform.parent.position;
+            s.visual.transform.position = new Vector3(p.x, s.top - h * 0.5f, p.z);   // 위쪽 벽에 붙어서 아래로 자람
+            s.visual.color = Color.Lerp(infectedColorA, infectedColorB, pulse);
         }
     }
 
