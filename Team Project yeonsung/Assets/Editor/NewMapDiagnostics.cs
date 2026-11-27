@@ -89,6 +89,20 @@ public static class NewMapDiagnostics
         return p;
     }
 
+    // Play 중 땅 그림의 끝 조각만 숨겼다 보였다 (세로줄 원인 찾기용, 씬은 안 바뀜)
+    [MenuItem("Tools/새맵/진단: 땅 그림 끝 조각 숨기기·보이기")]
+    static void ToggleCaps()
+    {
+        int n = 0; bool? state = null;
+        foreach (SpriteRenderer r in Object.FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (r.sprite == null || !(r.sprite.name.Contains("왼끝") || r.sprite.name.Contains("오른끝"))) continue;
+            if (state == null) state = !r.enabled;
+            r.enabled = state.Value; n++;
+        }
+        Debug.Log("[새맵 진단] 끝 조각 " + n + "개 " + (state == true ? "보이기" : "숨기기"));
+    }
+
     [MenuItem("Tools/새맵/진단: 웨이브 방 주변 오브젝트 적기")]
     static void DumpWaveArea() { DumpArea("웨이브 방 주변", Rect.MinMaxRect(86f, -34f, 128f, -8f)); }
 

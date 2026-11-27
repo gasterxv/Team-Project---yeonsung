@@ -19,6 +19,10 @@ public class BounceAntibody : MonoBehaviour
     [Tooltip("C로 내려찍어 튕기는 순간 잠깐 보여 줄 눌린 그림")]
     public Sprite pressedSprite;
     public float pressedTime = 0.18f;
+    [Tooltip("밟고 뛰는 애니메이션 그림 [0, 1, 2]. 있으면 튕길 때 0 → 1 → 2 → 0 순서로 재생 (눌린 그림 대신)")]
+    public Sprite[] bounceFrames;
+    [Tooltip("애니메이션 한 장 시간 (초)")]
+    public float frameTime = 0.08f;
 
     BoxCollider2D col;
     SpriteRenderer sprite;
@@ -103,8 +107,9 @@ public class BounceAntibody : MonoBehaviour
             if (DoubleJumpAbility.Instance != null) DoubleJumpAbility.Instance.RefreshAirJump();
             if (sprite != null)
             {
-                if (pressedSprite != null) sprite.sprite = pressedSprite;   // 눌린 그림
-                else sprite.color = Color.white;                            // 그림이 없으면 하얗게 번쩍
+                if (bounceFrames != null && bounceFrames.Length >= 3) StartCoroutine(PlayBounceFrames());   // 0 → 1 → 2 → 0
+                else if (pressedSprite != null) sprite.sprite = pressedSprite;   // 눌린 그림
+                else sprite.color = Color.white;                                 // 그림이 없으면 하얗게 번쩍
             }
             if (showDebugLog)
             {
@@ -117,9 +122,22 @@ public class BounceAntibody : MonoBehaviour
             }
         }
 
-        yield return new WaitForSeconds(pressedSprite != null ? pressedTime : 0.15f);
+        bool animating = bounceFrames != null && bounceFrames.Length >= 3;
+        yield return new WaitForSeconds(animating ? frameTime * 4f : (pressedSprite != null ? pressedTime : 0.15f));
         if (sprite != null) { sprite.color = baseColor; sprite.sprite = normalSprite; }
         bouncing = false;
+    }
+
+    // 밟고 뛰는 애니메이션: 0 → 1 → 2 → 0
+    IEnumerator PlayBounceFrames()
+    {
+        int[] order = { 0, 1, 2, 0 };
+        foreach (int f in order)
+        {
+            if (sprite == null) yield break;
+            sprite.sprite = bounceFrames[f];
+            yield return new WaitForSeconds(frameTime);
+        }
     }
 
     IEnumerator PopRoutine()

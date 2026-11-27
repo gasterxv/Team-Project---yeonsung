@@ -28,8 +28,22 @@ public static class NewMapGroundSkin
     const float Depth = (TexH - SurfaceFromTop) / PPU; // 밟는 면 아래로 그림 깊이 ≈ 2.42
     const float AboveSurface = SurfaceFromTop / PPU + 0.05f; // 밟는 면 위로 튀어나온 혹 높이
     const float MidW = 2408f / PPU;                    // 가운데 타일 폭 ≈ 4.82
-    const float CapLW = 664f / PPU, CapRW = 708f / PPU;
-    const float CapLPivotX = 40f / 664f, CapRPivotX = 664f / 708f;   // 끝 조각의 옆면 위치
+    // 줄 끝에서 끝 조각 안쪽 끝까지 거리 (기준점이 옆면이므로 기준점~안쪽 끝)
+    const float CapLW = (664f - 34f) / PPU, CapRW = 602f / PPU;
+    // 끝 조각의 옆면 위치 (몸통 높이에서 실제 그림이 끝나는 곳: 왼끝 약 30px, 오른끝 약 600px)
+    const float CapLPivotX = 34f / 664f, CapRPivotX = 602f / 708f;
+
+    // ---- 바닥 = 중경 땅 (중경_땅1·2를 밟는 면 맞춰 약 2칸씩 자른 조각 A00~A14, B00~B14 + 양 끝) ----
+    const string FloorDir = "Assets/Map/NewMapArt/땅/바닥/";
+    const float FPPU = 400f, FTexH = 1040f, FTop = 140f;
+    const float FPivotY = (FTexH - FTop) / FTexH;
+    const float FDepth = (FTexH - FTop) / FPPU;          // 밟는 면 아래 ≈ 2.25
+    const float FAbove = FTop / FPPU + 0.05f;
+    const float FCapLWpx = 520f, FCapLEdgePx = 80f;      // 왼끝 조각 폭, 옆면 위치
+    const float FCapRWpx = 400f, FCapREdgePx = 223f;     // 오른끝 조각 폭, 옆면 위치
+    const int SegPerStrip = 15;
+    static Sprite[] floorSegs;
+    static Sprite floorCapL, floorCapR;
 
     const float Cell = 0.1f;
     static readonly Color FillColor = new Color(0.11f, 0.035f, 0.04f);   // 띠 아래쪽 어두운 색
@@ -61,6 +75,17 @@ public static class NewMapGroundSkin
         capR = AssetDatabase.LoadAssetAtPath<Sprite>(CapRPath);
         square = AssetDatabase.LoadAssetAtPath<Sprite>(SquarePath);
         if (mid == null || capL == null || capR == null || square == null) { Debug.LogWarning("[새맵] 땅 그림을 못 찾았어요: " + Dir); return; }
+        floorSegs = new Sprite[SegPerStrip * 2];
+        for (int k = 0; k < SegPerStrip; k++)
+        {
+            floorSegs[k] = AssetDatabase.LoadAssetAtPath<Sprite>(FloorDir + "중경땅_A_" + k.ToString("00") + ".png");
+            floorSegs[SegPerStrip + k] = AssetDatabase.LoadAssetAtPath<Sprite>(FloorDir + "중경땅_B_" + k.ToString("00") + ".png");
+        }
+        floorCapL = AssetDatabase.LoadAssetAtPath<Sprite>(FloorDir + "중경땅_왼끝.png");
+        floorCapR = AssetDatabase.LoadAssetAtPath<Sprite>(FloorDir + "중경땅_오른끝.png");
+        foreach (Sprite fs in floorSegs) if (fs == null) { floorSegs = null; break; }
+        if (floorSegs == null || floorCapL == null || floorCapR == null)
+            Debug.LogWarning("[새맵] 중경 땅 바닥 조각을 못 찾아서 바닥도 벽 그림으로 깔아요: " + FloorDir);
 
         Undo.SetCurrentGroupName("새맵 땅 그림");
         int group = Undo.GetCurrentGroup();
@@ -192,7 +217,8 @@ public static class NewMapGroundSkin
             bool outerL = !S(start - 1, j) && !S(start - 1, airJ);
             bool outerR = !S(end, j) && !S(end, airJ);
             if (x1 - x0 < 0.25f) continue;
-            if (floor) MakeRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor, "바닥");
+            if (floor && floorSegs != null) MakeFloorRun(new Vector3(x0, y), x1 - x0, depths, outerL, outerR);
+            else if (floor) MakeRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor, "바닥");
             else { depths.Reverse(); MakeRun(new Vector3(x1, y), 180f, x1 - x0, depths, outerR, outerL, ref nextCeiling, "천장"); }
             count++;
         }
@@ -251,7 +277,58 @@ public static class NewMapGroundSkin
         if (capStart) Piece(run.transform, capL, 0f, 1f, o + 1, thin);
         if (capEnd) Piece(run.transform, capR, L, 1f, o + 1, thin);
 
-        if (thin) AddMasks(run.transform, depths, o);
+        if (thin) AddMasks(run.transform, depths, o, AboveSurface);
+    }
+
+    // 바닥 한 줄: 중경 땅 조각을 이어서 깔기. 조각 순서는 A00→…→A14→B00→…→B14→A00 (끝끼리 섞어 둬서 이음매가 안 보임)
+    static void MakeFloorRun(Vector3 origin, float L, List<float> depths, bool capStart, bool capEnd)
+    {
+        int o = nextFloor;
+        nextFloor += 2;
+        GameObject run = new GameObject("바닥 (" + origin.x.ToString("0.#") + ", " + origin.y.ToString("0.#") + ")");
+        run.transform.SetParent(skinRoot, false);
+        run.transform.position = origin;
+
+        List<float> d2 = new List<float>();
+        bool thin = false;
+        foreach (float d in depths) { float v = Mathf.Min(d, FDepth); d2.Add(v); if (v < FDepth - 0.001f) thin = true; }
+
+        float capLW = capStart ? (FCapLWpx - FCapLEdgePx) / FPPU : 0f;
+        float capRW = capEnd ? FCapREdgePx / FPPU : 0f;
+        if (capLW + capRW > L * 0.8f) { capLW = capRW = 0f; capStart = capEnd = false; }
+        float midLen = L - capLW - capRW;
+
+        int N = floorSegs.Length, half = N / 2;
+        float avg = 0f;
+        foreach (Sprite s in floorSegs) avg += s.bounds.size.x;
+        avg /= N;
+        int m = Mathf.Max(1, Mathf.RoundToInt(midLen / avg));
+        int hash = Mathf.Abs(Mathf.RoundToInt(origin.x * 7.3f + origin.y * 13.1f));
+        int start;
+        if (capStart) start = 0;                                  // 왼끝 조각 다음은 A00
+        else if (capEnd)                                          // 오른끝 조각 앞은 A14 또는 B14로 끝나게
+        {
+            int endIdx = hash % 2 == 0 ? half - 1 : N - 1;
+            start = ((endIdx - m + 1) % N + N) % N;
+        }
+        else start = hash % N;                                    // 줄마다 다른 곳에서 시작 (반복 티 안 나게)
+
+        float sum = 0f;
+        for (int k = 0; k < m; k++) sum += floorSegs[(start + k) % N].bounds.size.x;
+        float scale = midLen / sum;
+        const float Overlap = 0.02f;
+        float x = capLW;
+        for (int k = 0; k < m; k++)
+        {
+            Sprite s = floorSegs[(start + k) % N];
+            float natural = s.bounds.size.x, w = natural * scale;
+            Piece(run.transform, s, x - Overlap, (w + Overlap * 2f) / natural, o, thin);
+            x += w;
+        }
+        if (capStart) Piece(run.transform, floorCapL, 0f, 1f, o + 1, thin);
+        if (capEnd) Piece(run.transform, floorCapR, L, 1f, o + 1, thin);
+
+        if (thin) AddMasks(run.transform, d2, o, FAbove);
     }
 
     static void Piece(Transform parent, Sprite sprite, float x, float sx, int order, bool masked)
@@ -268,7 +345,7 @@ public static class NewMapGroundSkin
     }
 
     // 얇은 곳: 같은 깊이끼리 묶어서 '보이는 범위' 틀을 만듦 (이 줄의 그리기 순서에만 적용)
-    static void AddMasks(Transform run, List<float> depths, int order)
+    static void AddMasks(Transform run, List<float> depths, int order, float aboveSurface)
     {
         int a = 0;
         while (a < depths.Count)
@@ -280,8 +357,8 @@ public static class NewMapGroundSkin
             float d = depths[a];
             GameObject m = new GameObject("보이는 범위 (깊이 " + d.ToString("0.##") + ")");
             m.transform.SetParent(run, false);
-            m.transform.localPosition = new Vector3((x0 + x1) * 0.5f, (AboveSurface - d) * 0.5f, 0f);
-            m.transform.localScale = new Vector3(x1 - x0, AboveSurface + d, 1f);
+            m.transform.localPosition = new Vector3((x0 + x1) * 0.5f, (aboveSurface - d) * 0.5f, 0f);
+            m.transform.localScale = new Vector3(x1 - x0, aboveSurface + d, 1f);
             SpriteMask sm = m.AddComponent<SpriteMask>();
             sm.sprite = square;
             sm.isCustomRangeActive = true;
@@ -298,19 +375,26 @@ public static class NewMapGroundSkin
 
     static void SetupImporters()
     {
-        Setup(MidPath, new Vector2(0f, PivotY));
-        Setup(CapLPath, new Vector2(CapLPivotX, PivotY));
-        Setup(CapRPath, new Vector2(CapRPivotX, PivotY));
+        Setup(MidPath, new Vector2(0f, PivotY), PPU);
+        Setup(CapLPath, new Vector2(CapLPivotX, PivotY), PPU);
+        Setup(CapRPath, new Vector2(CapRPivotX, PivotY), PPU);
+        for (int k = 0; k < SegPerStrip; k++)
+        {
+            Setup(FloorDir + "중경땅_A_" + k.ToString("00") + ".png", new Vector2(0f, FPivotY), FPPU);
+            Setup(FloorDir + "중경땅_B_" + k.ToString("00") + ".png", new Vector2(0f, FPivotY), FPPU);
+        }
+        Setup(FloorDir + "중경땅_왼끝.png", new Vector2(FCapLEdgePx / FCapLWpx, FPivotY), FPPU);
+        Setup(FloorDir + "중경땅_오른끝.png", new Vector2(FCapREdgePx / FCapRWpx, FPivotY), FPPU);
     }
 
-    static void Setup(string path, Vector2 pivot)
+    static void Setup(string path, Vector2 pivot, float ppu)
     {
         TextureImporter ti = AssetImporter.GetAtPath(path) as TextureImporter;
         if (ti == null) return;
         TextureImporterSettings st = new TextureImporterSettings();
         ti.ReadTextureSettings(st);
         bool changed = ti.textureType != TextureImporterType.Sprite || st.spriteAlignment != (int)SpriteAlignment.Custom
-                       || Vector2.Distance(st.spritePivot, pivot) > 0.0005f || Mathf.Abs(ti.spritePixelsPerUnit - PPU) > 0.01f
+                       || Vector2.Distance(st.spritePivot, pivot) > 0.0005f || Mathf.Abs(ti.spritePixelsPerUnit - ppu) > 0.01f
                        || ti.maxTextureSize < 4096;
         if (!changed) return;
         ti.textureType = TextureImporterType.Sprite;
@@ -318,7 +402,7 @@ public static class NewMapGroundSkin
         ti.ReadTextureSettings(st);
         st.spriteAlignment = (int)SpriteAlignment.Custom;
         st.spritePivot = pivot;
-        st.spritePixelsPerUnit = PPU;
+        st.spritePixelsPerUnit = ppu;
         st.spriteMeshType = SpriteMeshType.FullRect;
         st.alphaIsTransparency = true;
         st.mipmapEnabled = false;

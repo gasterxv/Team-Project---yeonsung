@@ -62,10 +62,22 @@ public static class NewMapArtApplier
 
     static Sprite Load(string path) { return AssetDatabase.LoadAssetAtPath<Sprite>(path); }
 
+    // prefix + "0.png", "1.png", "2.png" 세 장이 다 있으면 배열, 아니면 null
+    static Sprite[] Frames(string prefix)
+    {
+        Sprite[] f = { Load(prefix + "0.png"), Load(prefix + "1.png"), Load(prefix + "2.png") };
+        return f[0] != null && f[1] != null && f[2] != null ? f : null;
+    }
+
     static void ApplyAntibodies()
     {
-        Sprite small = Load(ArtDir + "/항체/발판1.png"), smallPressed = Load(ArtDir + "/항체/발판1-2.png");
-        Sprite big = Load(ArtDir + "/항체/발판2.png"), bigPressed = Load(ArtDir + "/항체/발판2-1.png");
+        // 밟고 뛰는 애니메이션(0·1·2)이 있으면 그걸 씀: 작은 것 = foothold, 큰 것 = foothold2. 없으면 예전 한 장 그림
+        Sprite[] smallFrames = Frames(ArtDir + "/항체/애니/foothold_");
+        Sprite[] bigFrames = Frames(ArtDir + "/항체/애니/foothold2_");
+        Sprite small = smallFrames != null ? smallFrames[0] : Load(ArtDir + "/항체/발판1.png");
+        Sprite big = bigFrames != null ? bigFrames[0] : Load(ArtDir + "/항체/발판2.png");
+        Sprite smallPressed = smallFrames != null ? null : Load(ArtDir + "/항체/발판1-2.png");
+        Sprite bigPressed = bigFrames != null ? null : Load(ArtDir + "/항체/발판2-1.png");
         if (small == null || big == null) { report.Add("항체 그림을 못 찾음 (" + ArtDir + "/항체)"); return; }
 
         foreach (BounceAntibody b in Object.FindObjectsByType<BounceAntibody>(FindObjectsInactive.Include, FindObjectsSortMode.None))
@@ -106,7 +118,8 @@ public static class NewMapArtApplier
             Undo.RecordObject(b, "항체 그림 연결");
             b.visual = vr;
             b.pressedSprite = pressed;
-            report.Add(b.name + ": " + normal.name + (pressed != null ? " (+ 눌린 그림 " + pressed.name + ")" : ""));
+            b.bounceFrames = isBig ? bigFrames : smallFrames;
+            report.Add(b.name + ": " + normal.name + (b.bounceFrames != null ? " (+ 밟고 뛰는 애니메이션 0→1→2→0)" : pressed != null ? " (+ 눌린 그림 " + pressed.name + ")" : ""));
         }
     }
 
