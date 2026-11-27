@@ -63019,6 +63019,10 @@ PrefabInstance:
       propertyPath: settingCanvasPrefab
       value: 
       objectReference: {fileID: 7865923433332263024, guid: df076e73224bc8e4db779611373d3ae5, type: 3}
+    - target: {fileID: 3663733379934081428, guid: f88549cd08cd92a46abb6454deb1c079, type: 3}
+      propertyPath: reloadSceneOnRespawn
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4619225456093525993, guid: f88549cd08cd92a46abb6454deb1c079, type: 3}
       propertyPath: m_Name
       value: GameFlowManager

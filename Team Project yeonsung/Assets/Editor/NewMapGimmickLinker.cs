@@ -70,6 +70,28 @@ public static class NewMapGimmickLinker
         Debug.Log("[새맵] 기믹 연결 완료 (" + report.Count + "건). Ctrl+S로 저장해 주세요.\n- " + string.Join("\n- ", report));
     }
 
+    // 팀원 GameFlowManager의 '부활 때 씬 다시 불러오기'를 이 씬에서만 끕니다. (코드는 안 고치고 Inspector 값만)
+    // 끄면 예전 방식으로 부활 → OnPlayerRespawn → CheckpointResetManager가 '마지막 체크포인트 이후'만 되돌림.
+    [MenuItem("Tools/새맵/3. 부활 방식: 체크포인트 이후만 되돌리기")]
+    public static void UseCheckpointReset()
+    {
+        if (EditorApplication.isPlaying || EditorSceneManager.GetActiveScene().name != SceneName)
+        {
+            EditorUtility.DisplayDialog("새맵", "Play를 끄고 '" + SceneName + "' 씬에서 실행해 주세요.", "확인");
+            return;
+        }
+        GameFlowManager gfm = Object.FindFirstObjectByType<GameFlowManager>(FindObjectsInactive.Include);
+        if (gfm == null) { Debug.LogWarning("[새맵] 씬에 GameFlowManager가 없어요."); return; }
+
+        SerializedObject so = new SerializedObject(gfm);
+        SerializedProperty reload = so.FindProperty("reloadSceneOnRespawn");
+        if (reload == null) { Debug.LogWarning("[새맵] GameFlowManager에 reloadSceneOnRespawn 값이 없어요."); return; }
+        reload.boolValue = false;
+        so.ApplyModifiedProperties();
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log("[새맵] 이 씬에서 '부활 때 씬 다시 불러오기'를 껐어요. 죽으면 마지막 체크포인트 이후만 되돌아가요. Ctrl+S로 저장해 주세요.");
+    }
+
     // ---------------- 규칙 (초기화·더블점프) ----------------
 
     static void EnsureRules(Transform root)
