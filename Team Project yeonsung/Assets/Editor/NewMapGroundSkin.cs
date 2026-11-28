@@ -205,6 +205,35 @@ public static class NewMapGroundSkin
         return Mathf.Round(n * Cell * 0.5f * 20f) / 20f;   // 0.05 단위
     }
 
+    // 줄 [start, end)가 들어 있는 j줄 땅의 전체 폭 (맵 바깥까지 이어지면 아주 넓게 봄)
+    static float SolidSpan(int start, int end, int j)
+    {
+        int a = start, b = end;
+        while (a > 0 && S(a - 1, j)) a--;
+        while (b < gw && S(b, j)) b++;
+        if (a == 0 || b == gw) return 999f;
+        return (b - a) * Cell;
+    }
+
+    // 양옆보다 깊은 구간이 좁으면(1.5칸 이하, 양옆이 모두 있음) 양옆 중 더 깊은 값으로 낮춤
+    static void ClampNarrowBumps(List<float> d)
+    {
+        const int MaxCells = 15;
+        int a = 0;
+        while (a < d.Count)
+        {
+            int b = a;
+            while (b < d.Count && Mathf.Approximately(d[b], d[a])) b++;
+            if (a > 0 && b < d.Count && b - a <= MaxCells)
+            {
+                float side = Mathf.Max(d[a - 1], d[b]);
+                if (d[a] > side + 0.001f)
+                    for (int k = a; k < b; k++) d[k] = side;
+            }
+            a = b;
+        }
+    }
+
     // 가로 경계: floor = 윗면(위가 빈 공간), 아니면 아랫면(천장)
     static int ScanRow(int j, bool floor)
     {
@@ -223,16 +252,20 @@ public static class NewMapGroundSkin
             bool outerL = !S(start - 1, j) && !S(start - 1, airJ);
             bool outerR = !S(end, j) && !S(end, airJ);
             if (x1 - x0 < 0.25f) continue;
+            // 판 아래(위)로 얇은 벽이 이어진 곳(예: 노란 문 위 x 110.3~110.7): 그 몇 칸만 땅이 길게 이어져서 깊이가 '두꺼움'으로 잡힘
+            // → 그림 아래쪽 어두운 부분이 판 반대쪽까지 내려와 어두운 네모가 됨. 좁게 튀는 깊이는 양옆 깊이로 맞춤
+            ClampNarrowBumps(depths);
             // 얇은 기둥 끝(폭 1칸 미만, 양쪽이 다 빈 공간): 띠 한 장을 찌그러뜨려 깔면 무늬 없는 분홍 막대가 됨 → 양옆 벽 띠만 보이게
             if (x1 - x0 < 1f && outerL && outerR) continue;
-            // 기둥 끝(양쪽이 빈 공간, 폭 3칸 미만): 윗면 그림을 깊게 깔면 그림 아래쪽 어두운 부분이 기둥 위에 띠처럼 보임 → 얕게만
-            if (outerL && outerR && x1 - x0 < 3f)
-                for (int k = 0; k < depths.Count; k++) depths[k] = Mathf.Min(depths[k], 0.6f);
             // 얇은 판(바닥과 아랫면 사이가 얇음)의 아랫면: 벽 그림(밝은 분홍)을 쓰면 윗면 바닥 그림(진한 자홍)과 색이 달라 밝은 띠가 됨
-            // → 아랫면도 바닥 그림을 뒤집어 깔아서 색을 맞춤
+            // → 아랫면도 바닥 그림을 뒤집어 깔아서 색을 맞춤 (기둥 끝을 얕게 하기 전에 판단 → 기둥 아랫면은 양옆 벽과 같은 그림)
             int thinCells = 0;
             foreach (float d in depths) if (d < Depth - 0.001f) thinCells++;
             bool thinSlab = !floor && floorSegs != null && thinCells * 2 > depths.Count;
+            // 기둥 끝(양쪽이 빈 공간, 폭 3칸 미만): 윗면 그림을 깊게 깔면 그림 아래쪽 어두운 부분이 기둥 위에 띠처럼 보임 → 얕게만
+            //   옆에 얇은 벽이 붙어 줄이 짧게 끊긴 기둥(x 156.3~158)도 같은 높이의 땅 전체 폭으로 판단
+            if (SolidSpan(start, end, j) < 3f)
+                for (int k = 0; k < depths.Count; k++) depths[k] = Mathf.Min(depths[k], 0.6f);
 
             if (floor && floorSegs != null) MakeFloorRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor);
             else if (floor) MakeRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor, "바닥");
