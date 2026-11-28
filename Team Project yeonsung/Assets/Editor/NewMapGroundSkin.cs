@@ -72,9 +72,11 @@ public static class NewMapGroundSkin
         if (groundGroup == null) { Debug.LogWarning("[새맵] '" + RootName + "/땅' 묶음이 없어요."); return; }
 
         SetupImporters();
-        mid = AssetDatabase.LoadAssetAtPath<Sprite>(MidPath);
-        capL = AssetDatabase.LoadAssetAtPath<Sprite>(CapLPath);
-        capR = AssetDatabase.LoadAssetAtPath<Sprite>(CapRPath);
+        // 벽·천장 띠 그림은 안쪽 끝에 까만 테두리가 있고 안쪽도 땅 색보다 밝아서, 두꺼운 땅 속에 선·경계가 보였음
+        // → 안쪽으로 갈수록 땅 안쪽 색으로 서서히 바뀌는 사본(가공/페이드/)을 만들어 씀 (원본은 그대로)
+        mid = MakeFaded(MidPath, new Vector2(0f, PivotY), true);
+        capL = MakeFaded(CapLPath, new Vector2(CapLPivotX, PivotY), false);
+        capR = MakeFaded(CapRPath, new Vector2(CapRPivotX, PivotY), false);
         square = AssetDatabase.LoadAssetAtPath<Sprite>(SquarePath);
         if (mid == null || capL == null || capR == null || square == null) { Debug.LogWarning("[새맵] 땅 그림을 못 찾았어요: " + Dir); return; }
         floorSegs = new Sprite[SegPerStrip * 2];
@@ -157,6 +159,13 @@ public static class NewMapGroundSkin
                 for (int y = Mathf.Max(0, y0); y < Mathf.Min(gh, y1); y++)
                     solid[x, y] = true;
         }
+        // 맵 테두리(모든 땅 블록을 감싸는 네모) 바깥도 땅으로 봄: 카메라가 맵 바깥을 안 보여 주므로(CameraFollow 범위)
+        // 바깥쪽 면에 띠를 깔 필요가 없고, 깔면 테두리 벽이 '얇은 벽'으로 잡혀 안쪽 반만 띠가 보이고 나머지가 어두워졌음
+        int bx0 = Mathf.RoundToInt((b.min.x - minX) / Cell), bx1 = Mathf.RoundToInt((b.max.x - minX) / Cell);
+        int by0 = Mathf.RoundToInt((b.min.y - minY) / Cell), by1 = Mathf.RoundToInt((b.max.y - minY) / Cell);
+        for (int x = 0; x < gw; x++)
+            for (int y = 0; y < gh; y++)
+                if (x < bx0 || x >= bx1 || y < by0 || y >= by1) solid[x, y] = true;
         FillSlivers();
     }
 
@@ -205,14 +214,36 @@ public static class NewMapGroundSkin
         return Mathf.Round(n * Cell * 0.5f * 20f) / 20f;   // 0.05 단위
     }
 
-    // 줄 [start, end)가 들어 있는 j줄 땅의 전체 폭 (맵 바깥까지 이어지면 아주 넓게 봄)
-    static float SolidSpan(int start, int end, int j)
+    // (i,j) 줄 칸에서 안쪽(inward)으로 m칸 내려간 곳마다, 옆으로 가장 가까운 빈 공간까지 거리 h를 재서 h ≤ m 이 되는 깊이 (0.1 단위)
+    static float MiterDepth(int i, int j, int inward, float full)
     {
-        int a = start, b = end;
-        while (a > 0 && S(a - 1, j)) a--;
-        while (b < gw && S(b, j)) b++;
-        if (a == 0 || b == gw) return 999f;
-        return (b - a) * Cell;
+        int maxM = Mathf.CeilToInt(full / Cell);
+        for (int m = 1; m <= maxM; m++)
+        {
+            int r = j + inward * m;
+            for (int h = 1; h <= m; h++)
+                if (!S(i - h, r) || !S(i + h, r)) return m * Cell;
+        }
+        return full;
+    }
+
+    // 모서리 채움 네모(꼭짓점 격자선 vx,vy에서 sx,sy 방향 w×h)를 땅 칸 안으로 줄임: 먼저 열마다 땅이 이어지는 높이, 그다음 줄마다 폭
+    static void ClipPatch(int vx, int vy, int sx, int sy, ref float w, ref float h)
+    {
+        int wc = Mathf.RoundToInt(w / Cell), hc = Mathf.RoundToInt(h / Cell);
+        for (int k = 0; k < wc; k++)
+        {
+            int ci = sx > 0 ? vx + k : vx - 1 - k, m = 0;
+            while (m < hc && S(ci, sy > 0 ? vy + m : vy - 1 - m)) m++;
+            hc = m;
+        }
+        for (int m = 0; m < hc; m++)
+        {
+            int cj = sy > 0 ? vy + m : vy - 1 - m, k = 0;
+            while (k < wc && S(sx > 0 ? vx + k : vx - 1 - k, cj)) k++;
+            wc = k;
+        }
+        w = wc * Cell; h = hc * Cell;
     }
 
     // 양옆보다 깊은 구간이 좁으면(1.5칸 이하, 양옆이 모두 있음) 양옆 중 더 깊은 값으로 낮춤
@@ -257,15 +288,21 @@ public static class NewMapGroundSkin
             ClampNarrowBumps(depths);
             // 얇은 기둥 끝(폭 1칸 미만, 양쪽이 다 빈 공간): 띠 한 장을 찌그러뜨려 깔면 무늬 없는 분홍 막대가 됨 → 양옆 벽 띠만 보이게
             if (x1 - x0 < 1f && outerL && outerR) continue;
+            // 0.5칸보다 좁은 턱(얇은 조각이 위 블록보다 옆으로 조금 나온 곳, 예: 백혈구 위 x 29.7): 바닥 그림이 찌그러져 어두운 네모가 됨 → 안 깔기
+            if (x1 - x0 < 0.5f && (outerL || outerR)) continue;
             // 얇은 판(바닥과 아랫면 사이가 얇음)의 아랫면: 벽 그림(밝은 분홍)을 쓰면 윗면 바닥 그림(진한 자홍)과 색이 달라 밝은 띠가 됨
             // → 아랫면도 바닥 그림을 뒤집어 깔아서 색을 맞춤 (기둥 끝을 얕게 하기 전에 판단 → 기둥 아랫면은 양옆 벽과 같은 그림)
             int thinCells = 0;
             foreach (float d in depths) if (d < Depth - 0.001f) thinCells++;
             bool thinSlab = !floor && floorSegs != null && thinCells * 2 > depths.Count;
-            // 기둥 끝(양쪽이 빈 공간, 폭 3칸 미만): 윗면 그림을 깊게 깔면 그림 아래쪽 어두운 부분이 기둥 위에 띠처럼 보임 → 얕게만
-            //   옆에 얇은 벽이 붙어 줄이 짧게 끊긴 기둥(x 156.3~158)도 같은 높이의 땅 전체 폭으로 판단
-            if (SolidSpan(start, end, j) < 3f)
-                for (int k = 0; k < depths.Count; k++) depths[k] = Mathf.Min(depths[k], 0.6f);
+            // 옆 벽면과 나누기: 바닥·천장 그림의 깊은(어두운) 부분은 벽 그림보다 앞에 그려져서, 옆에 벽면이 있으면 벽 그림의 밝은 부분을 덮음
+            // (기둥 끝 어두운 띠, 바깥 모서리 어두운 네모, 천장 끝 위 가로 경계선) → 땅 속 각 지점은 더 가까운 면의 그림이 보이게:
+            // 그 깊이에서 옆으로 빈 공간(벽면)까지가 더 가까워지면 거기서 멈춤 (모서리는 45도로 나뉨). 단 밟는 면 띠(0.6)는 항상 보이게
+            float fullD = (floor || thinSlab) && floorSegs != null ? FDepth : Depth;
+            //   얇은 판(두께 절반만 보이는 칸)은 옆면이 짧아 원래대로 바닥 그림이 덮는 게 자연스러움 → 두꺼운 칸만
+            for (int k = 0; k < depths.Count; k++)
+                if (depths[k] >= fullD - 0.001f)
+                    depths[k] = Mathf.Min(depths[k], Mathf.Max(0.6f, MiterDepth(start + k, j, inward, fullD)));
 
             if (floor && floorSegs != null) MakeFloorRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor);
             else if (floor) MakeRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor, "바닥");
@@ -279,9 +316,11 @@ public static class NewMapGroundSkin
             float eL = InnerCornerLength(start - 1, j, -1, 0, 0, airDj, out bridgeL), eR = InnerCornerLength(end, j, 1, 0, 0, airDj, out bridgeR);
             float dL = CornerDepthScale(start - 1, j, 0, inward) * Depth, dR = CornerDepthScale(end, j, 0, inward) * Depth;
             bool styleFloor = floor || thinSlab;
-            if (!(bridgeL && eL <= 1.5f)) CornerPatch(new Vector3(x0, y), -1f, floor ? -1f : 1f, eL, dL, styleFloor);
+            // 모서리 채움 네모가 땅 밖(빈 공간)으로 삐져나가지 않게 땅 안쪽만큼만 (ㄱ자로 꺾인 곳의 작은 검은 점)
+            int vy = floor ? j + 1 : j, sy = floor ? -1 : 1;
+            if (!(bridgeL && eL <= 1.5f)) { ClipPatch(start, vy, -1, sy, ref eL, ref dL); CornerPatch(new Vector3(x0, y), -1f, sy, eL, dL, styleFloor); }
             if (bridgeR && eR <= 1.5f) Bridge(new Vector3(x1, y), eR, floor, styleFloor, Mathf.Min(dR, Depth));
-            else CornerPatch(new Vector3(x1, y), 1f, floor ? -1f : 1f, eR, dR, styleFloor);
+            else { ClipPatch(end, vy, 1, sy, ref eR, ref dR); CornerPatch(new Vector3(x1, y), 1f, sy, eR, dR, styleFloor); }
             count++;
         }
         return count;
@@ -372,8 +411,22 @@ public static class NewMapGroundSkin
         SpriteRenderer r = g.AddComponent<SpriteRenderer>();
         r.sprite = sprite;
         r.sortingOrder = FillOrder + 1;
+        Material m = CornerMaterial();
+        if (m != null) r.sharedMaterial = m;   // 겹친 모서리는 더 밝은 쪽이 보이게
         corners++;
         pieces++;
+    }
+
+    const string CornerShaderPath = "Assets/Map/NewMapArt/땅/CornerMax.shader", CornerMatPath = "Assets/Map/NewMapArt/땅/모서리_밝은쪽.mat";
+    static Material CornerMaterial()
+    {
+        Material m = AssetDatabase.LoadAssetAtPath<Material>(CornerMatPath);
+        if (m != null) return m;
+        Shader sh = AssetDatabase.LoadAssetAtPath<Shader>(CornerShaderPath);
+        if (sh == null) return null;
+        m = new Material(sh);
+        AssetDatabase.CreateAsset(m, CornerMatPath);
+        return m;
     }
 
     // ---- 모서리 그림 만들기: 띠 그림을 깊이(줄)마다 평균 낸 색 → 꼭짓점에서의 거리로 칠함 ----
@@ -381,21 +434,63 @@ public static class NewMapGroundSkin
     const string CornerWallPath = Dir + "모서리_채움_벽.png", CornerFloorPath = FloorDir + "모서리_채움_바닥.png";
     static Sprite cornerWall, cornerFloor;
 
-    static void MakeCornerSprites()
+    // ---- 띠 그림 안쪽 끝을 땅 안쪽 색으로 (FadeStart~FadeEnd 깊이에서 서서히) ----
+    const string FadeDir = Dir + "페이드/";
+    const float FadeStart = Depth * 0.45f, FadeEnd = Depth * 0.95f;
+
+    static Sprite MakeFaded(string srcPath, Vector2 pivot, bool fillAlpha)
     {
-        cornerWall = MakeCorner(MidPath, CornerWallPath, SurfaceFromTop, PPU);
-        cornerFloor = floorSegs != null ? MakeCorner(FloorDir + "중경땅_A_07.png", CornerFloorPath, FTop, FPPU) : cornerWall;
+        string root = System.IO.Path.GetDirectoryName(Application.dataPath);
+        string full = System.IO.Path.Combine(root, srcPath);
+        if (!System.IO.File.Exists(full)) return null;
+        string outPath = FadeDir + System.IO.Path.GetFileName(srcPath);
+        System.IO.Directory.CreateDirectory(System.IO.Path.Combine(root, FadeDir));
+        Texture2D t = new Texture2D(2, 2);
+        t.LoadImage(System.IO.File.ReadAllBytes(full));
+        Color[] px = t.GetPixels();
+        int w = t.width, h = t.height;
+        for (int y = 0; y < h; y++)
+        {
+            float d = ((h - 1 - y) - SurfaceFromTop) / PPU;   // 밟는 면에서 안쪽으로 깊이
+            float k = Mathf.Clamp01((d - FadeStart) / (FadeEnd - FadeStart));
+            k = k * k * (3f - 2f * k);
+            if (k <= 0f) continue;
+            for (int x = 0; x < w; x++)
+            {
+                Color c = px[y * w + x];
+                Color o = Color.Lerp(c, FillColor, k);
+                o.a = fillAlpha ? Mathf.Lerp(c.a, 1f, k) : c.a;   // 가운데 조각: 맨 끝 투명한 줄도 땅 색으로 메움
+                px[y * w + x] = o;
+            }
+        }
+        t.SetPixels(px);
+        t.Apply();
+        System.IO.File.WriteAllBytes(System.IO.Path.Combine(root, outPath), t.EncodeToPNG());
+        Object.DestroyImmediate(t);
+        AssetDatabase.ImportAsset(outPath);
+        Setup(outPath, pivot, PPU);
+        return AssetDatabase.LoadAssetAtPath<Sprite>(outPath);
     }
 
-    static Sprite MakeCorner(string srcPath, string outPath, float surfacePx, float ppu)
+    static void MakeCornerSprites()
+    {
+        // 모서리 그림의 가로 방향(꼭짓점에서 벽 아래·위로 들어가는 쪽)은 벽 띠와 닿고, 세로 방향은 그 줄(바닥/천장)의 띠와 닿음
+        // → 가로 가장자리는 벽 띠 색, 세로 가장자리는 줄 띠 색이 되게 각도로 섞음 (한 가지 색만 쓰면 네모 경계가 보였음)
+        string wallSrc = FadeDir + "땅_가운데_반복.png";
+        List<Color> wallProf = Profile(wallSrc, SurfaceFromTop, PPU);
+        cornerWall = MakeCorner(wallProf, wallProf, CornerWallPath);
+        cornerFloor = floorSegs != null ? MakeCorner(wallProf, Profile(FloorDir + "중경땅_A_07.png", FTop, FPPU), CornerFloorPath) : cornerWall;
+    }
+
+    // 띠 그림의 깊이별 평균 색 (0.01칸 간격, 밟는 면 아래 25px부터 = 테두리 검은 선 피함). 무늬 때문에 고리가 보이지 않게 앞뒤로 부드럽게
+    static List<Color> Profile(string srcPath, float surfacePx, float ppu)
     {
         string full = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath), srcPath);
         if (!System.IO.File.Exists(full)) return null;
         Texture2D src = new Texture2D(2, 2);
         src.LoadImage(System.IO.File.ReadAllBytes(full));
-        // 줄마다 평균 색 (위 = 밟는 면, 아래로 갈수록 깊음). 테두리 검은 선을 피하려고 면 아래 25px부터
         int top = src.height - 1 - Mathf.RoundToInt(surfacePx + 25f);
-        List<Color> profile = new List<Color>();
+        List<Color> raw = new List<Color>();
         for (int y = top; y >= 0; y--)
         {
             Color sum = Color.clear; float wsum = 0f;
@@ -405,18 +500,33 @@ public static class NewMapGroundSkin
                 if (c.a < 0.5f) continue;
                 sum += c; wsum += 1f;
             }
-            profile.Add(wsum > 0f ? sum / wsum : FillColor);
+            raw.Add(wsum > 0f ? sum / wsum : FillColor);
         }
         Object.DestroyImmediate(src);
-        float pxPerUnit = ppu;
+        List<Color> prof = new List<Color>();
+        const float Step = 0.01f;
+        for (float d = 0f; d < Depth * 1.5f; d += Step)
+        {
+            int k = Mathf.RoundToInt(d * ppu), rad = Mathf.RoundToInt(0.06f * ppu);
+            Color sum = Color.clear; int n = 0;
+            for (int q = k - rad; q <= k + rad; q++) { sum += q >= 0 && q < raw.Count ? raw[q] : FillColor; n++; }
+            prof.Add(sum / n);
+        }
+        return prof;
+    }
+
+    static Sprite MakeCorner(List<Color> profX, List<Color> profY, string outPath)
+    {
+        if (profX == null || profY == null) return null;
         Texture2D t = new Texture2D(CornerPx, CornerPx, TextureFormat.RGBA32, false);
         for (int py = 0; py < CornerPx; py++)
             for (int px = 0; px < CornerPx; px++)
             {
                 float dx = (px + 0.5f) * Depth / CornerPx, dy = (py + 0.5f) * Depth / CornerPx;
                 float r = Mathf.Sqrt(dx * dx + dy * dy);
-                int k = Mathf.RoundToInt(r * pxPerUnit);
-                Color c = k < profile.Count ? profile[k] : FillColor;
+                int k = Mathf.Min(Mathf.RoundToInt(r / 0.01f), profX.Count - 1);
+                float wy = Mathf.Atan2(dy, dx) / (Mathf.PI * 0.5f);   // 0 = 가로 가장자리, 1 = 세로 가장자리
+                Color c = Color.Lerp(profX[k], profY[Mathf.Min(k, profY.Count - 1)], wy);
                 if (r > Depth) c = Color.Lerp(c, FillColor, Mathf.Clamp01((r - Depth) / (Depth * 0.4f)));
                 c.a = 1f;
                 t.SetPixel(px, py, c);
