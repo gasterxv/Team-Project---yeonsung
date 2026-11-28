@@ -225,16 +225,30 @@ public static class NewMapGroundSkin
             if (x1 - x0 < 0.25f) continue;
             // 얇은 기둥 끝(폭 1칸 미만, 양쪽이 다 빈 공간): 띠 한 장을 찌그러뜨려 깔면 무늬 없는 분홍 막대가 됨 → 양옆 벽 띠만 보이게
             if (x1 - x0 < 1f && outerL && outerR) continue;
-            if (floor && floorSegs != null) MakeFloorRun(new Vector3(x0, y), x1 - x0, depths, outerL, outerR);
+            // 기둥 끝(양쪽이 빈 공간, 폭 3칸 미만): 윗면 그림을 깊게 깔면 그림 아래쪽 어두운 부분이 기둥 위에 띠처럼 보임 → 얕게만
+            if (outerL && outerR && x1 - x0 < 3f)
+                for (int k = 0; k < depths.Count; k++) depths[k] = Mathf.Min(depths[k], 0.6f);
+            // 얇은 판(바닥과 아랫면 사이가 얇음)의 아랫면: 벽 그림(밝은 분홍)을 쓰면 윗면 바닥 그림(진한 자홍)과 색이 달라 밝은 띠가 됨
+            // → 아랫면도 바닥 그림을 뒤집어 깔아서 색을 맞춤
+            int thinCells = 0;
+            foreach (float d in depths) if (d < Depth - 0.001f) thinCells++;
+            bool thinSlab = !floor && floorSegs != null && thinCells * 2 > depths.Count;
+
+            if (floor && floorSegs != null) MakeFloorRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor);
             else if (floor) MakeRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor, "바닥");
+            else if (thinSlab) { depths.Reverse(); MakeFloorRun(new Vector3(x1, y), 180f, x1 - x0, depths, outerR, outerL, ref nextCeiling); }
             else { depths.Reverse(); MakeRun(new Vector3(x1, y), 180f, x1 - x0, depths, outerR, outerL, ref nextCeiling, "천장"); }
             // 안쪽 모서리(줄 끝 너머가 벽으로 막힘): 어느 띠도 덮지 않아 검은 네모가 보이던 곳
             // → 모서리 꼭짓점에서 멀어질수록 띠와 같은 밝기로 어두워지는 그림으로 채움 (띠를 늘리지 않으니 삐져나오지 않음)
+            // 단, 얇은 벽(폭 1.5칸 이하) 너머로 같은 높이의 줄이 다시 이어지면 → 줄 그림을 벽 위로 그대로 이어 붙임 (오른쪽 끝에서만)
             int airDj = floor ? 1 : -1;
-            float eL = InnerCornerLength(start - 1, j, -1, 0, 0, airDj), eR = InnerCornerLength(end, j, 1, 0, 0, airDj);
+            bool bridgeL, bridgeR;
+            float eL = InnerCornerLength(start - 1, j, -1, 0, 0, airDj, out bridgeL), eR = InnerCornerLength(end, j, 1, 0, 0, airDj, out bridgeR);
             float dL = CornerDepthScale(start - 1, j, 0, inward) * Depth, dR = CornerDepthScale(end, j, 0, inward) * Depth;
-            CornerPatch(new Vector3(x0, y), -1f, floor ? -1f : 1f, eL, dL, floor);
-            CornerPatch(new Vector3(x1, y), 1f, floor ? -1f : 1f, eR, dR, floor);
+            bool styleFloor = floor || thinSlab;
+            if (!(bridgeL && eL <= 1.5f)) CornerPatch(new Vector3(x0, y), -1f, floor ? -1f : 1f, eL, dL, styleFloor);
+            if (bridgeR && eR <= 1.5f) Bridge(new Vector3(x1, y), eR, floor, styleFloor, Mathf.Min(dR, Depth));
+            else CornerPatch(new Vector3(x1, y), 1f, floor ? -1f : 1f, eR, dR, styleFloor);
             count++;
         }
         return count;
@@ -267,17 +281,43 @@ public static class NewMapGroundSkin
     // ---------------- 안쪽 모서리 채우기 ----------------
 
     // (ci,cj)부터 (si,sj) 방향으로, 칸도 땅이고 빈 공간 쪽 옆칸(airDi,airDj)도 땅인 칸이 몇 칸 이어지는지 (최대 띠 깊이만큼)
-    static float InnerCornerLength(int ci, int cj, int si, int sj, int airDi, int airDj)
+    // bridge = 칸은 계속 땅인데 빈 공간 쪽이 다시 열려서 멈춤 (= 얇은 벽 너머로 같은 높이의 줄이 이어짐)
+    static float InnerCornerLength(int ci, int cj, int si, int sj, int airDi, int airDj, out bool bridge)
     {
+        bridge = false;
         int max = Mathf.CeilToInt(Depth / Cell), n = 0;
         while (n < max)
         {
             int a = ci + si * n, b = cj + sj * n;
             if (a < 0 || b < 0 || a >= gw || b >= gh) break;   // 맵 바깥은 채우지 않음
-            if (!S(a, b) || !S(a + airDi, b + airDj)) break;
+            if (!S(a, b)) break;
+            if (!S(a + airDi, b + airDj)) { bridge = n > 0; break; }
             n++;
         }
         return n * Cell;
+    }
+
+    // 얇은 벽 위(아래)로 줄 그림을 이어 붙임: 끝점 p에서 오른쪽으로 w. 벽 띠보다 뒤에 그려서 벽 모양은 그대로 보임
+    static void Bridge(Vector3 p, float w, bool floor, bool styleFloor, float depth)
+    {
+        // 가운데 조각(옆면 그늘이 없는 A_07)을 씀
+        Sprite s = styleFloor && floorSegs != null ? floorSegs[7] : mid;
+        float natural = s.bounds.size.x, fullDepth = styleFloor && floorSegs != null ? FDepth : Depth;
+        const float Overlap = 0.04f;
+        GameObject g = new GameObject("얇은 벽 위 잇기");
+        g.transform.SetParent(skinRoot, false);
+        // 가로는 틈 폭 + 양쪽 0.05만 (넘치면 겉 테두리 선이 옆 줄 아래로 비침), 세로는 원래 깊이 그대로
+        // 바닥: 그대로(기준점 = 왼쪽 끝). 천장: 180도(기준점 = 오른쪽 끝)
+        float span = w + Overlap * 2f;
+        g.transform.position = new Vector3(floor ? p.x - Overlap : p.x + w + Overlap, p.y, p.z);
+        g.transform.rotation = Quaternion.Euler(0f, 0f, floor ? 0f : 180f);
+        // 판이 그림보다 얇으면(반대쪽으로 삐져나감) 판 두께에 맞춰 세로만 줄임 (depth = 판 두께의 절반)
+        g.transform.localScale = new Vector3(span / natural, Mathf.Min(1f, depth * 2f / fullDepth), 1f);
+        SpriteRenderer r = g.AddComponent<SpriteRenderer>();
+        r.sprite = s;
+        r.sortingOrder = FillOrder + 1;
+        corners++;
+        pieces++;
     }
 
     // 모서리 칸에서 안쪽으로 보여 줄 깊이 비율 (얇으면 그림을 눌러서 반대쪽으로 삐져나가지 않게)
@@ -391,13 +431,14 @@ public static class NewMapGroundSkin
     }
 
     // 바닥 한 줄: 중경 땅 조각을 이어서 깔기. 조각 순서는 A00→…→A14→B00→…→B14→A00 (끝끼리 섞어 둬서 이음매가 안 보임)
-    static Transform MakeFloorRun(Vector3 origin, float L, List<float> depths, bool capStart, bool capEnd)
+    static Transform MakeFloorRun(Vector3 origin, float rotZ, float L, List<float> depths, bool capStart, bool capEnd, ref int order)
     {
-        int o = nextFloor;
-        nextFloor += 2;
-        GameObject run = new GameObject("바닥 (" + origin.x.ToString("0.#") + ", " + origin.y.ToString("0.#") + ")");
+        int o = order;
+        order += 2;
+        GameObject run = new GameObject((rotZ == 0f ? "바닥 (" : "얇은 판 아랫면 (") + origin.x.ToString("0.#") + ", " + origin.y.ToString("0.#") + ")");
         run.transform.SetParent(skinRoot, false);
         run.transform.position = origin;
+        run.transform.rotation = Quaternion.Euler(0f, 0f, rotZ);
 
         List<float> d2 = new List<float>();
         bool thin = false;
