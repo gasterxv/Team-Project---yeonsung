@@ -209,6 +209,93 @@ public static class NewMapFixes1128
     }
 
     // ─────────────────────────────────────────────
+    // 14. 튀어나온 블록을 옆 땅과 일자로 (충돌도 같이 옮김). 여러 번 눌러도 같은 결과(이미 옮긴 건 못 찾아서 건너뜀)
+    [MenuItem("Tools/새맵/14. 튀어나온 블록 일자로 맞추기")]
+    static void FlushBlocks()
+    {
+        GameObject root = GameObject.Find("새맵_회색상자");
+        Transform ground = root != null ? root.transform.Find("땅") : null;
+        if (ground == null) { Debug.LogWarning("[새맵] 땅 묶음 없음"); return; }
+        string log = "[새맵] 14번 튀어나온 블록:\n";
+        // 백혈구 벽 위 얇은 땅: 위 천장 벽보다 0.3칸 왼쪽으로 튀어나와 있음 → 천장 벽 선에 맞춰 오른쪽으로
+        log += MoveBlock(ground, 29.7f, 30.3f, -13.6f, -12.1f, 30.0f);
+        log += MoveBlock(ground, 181.7f, 182.3f, -11.6f, -8.6f, 182.0f);
+        log += MoveBlock(ground, 91.7f, 92.3f, -16.1f, -13.6f, 92.0f);
+        log += MoveBlock(ground, 92.3f, 92.9f, -16.1f, -13.6f, 92.0f);   // 이 씬에서는 x 92.3에 있었음 (백혈구 오른쪽으로 삐져나옴)
+        // 웨이브 방 오른쪽 위 얇은 땅: 감염핵 방 쪽으로 0.3칸 튀어나옴 → 왼쪽으로 (벽 선 109에 맞춤)
+        log += MoveBlock(ground, 108.7f, 109.3f, -17f, -13.6f, 108.4f);
+        // 이단 점프 방 왼쪽 기둥 옆 0.2칸 덧붙은 조각 → 끔 (지우지 않음)
+        log += HideBlock(ground, 110.3f, 110.5f, 18f, 32.5f);
+        // (되돌림) 아래방 바닥 블록 왼쪽 끝 x 67.89의 턱은 벽 블록(x 44~74) 속에 숨어 안 보임 → 옮기면 백혈구 옆에 턱이 생겨서 원래대로
+        log += SetLeft(ground, 91.5f, 118.89f, -32.5f, -21f, 67.89f);
+        EditorSceneManager.MarkSceneDirty(root.scene);
+        Debug.Log(log + "→ 9. 땅 그림, 10. 오브젝트 그림 다시 누르고 Ctrl+S");
+    }
+
+    static BoxCollider2D FindBlock(Transform ground, float x0, float x1, float y0, float y1)
+    {
+        foreach (BoxCollider2D c in ground.GetComponentsInChildren<BoxCollider2D>(true))
+        {
+            Bounds b = Box(c);
+            if (Mathf.Abs(b.min.x - x0) < 0.06f && Mathf.Abs(b.max.x - x1) < 0.06f && Mathf.Abs(b.min.y - y0) < 0.06f && Mathf.Abs(b.max.y - y1) < 0.06f)
+                return c;
+        }
+        // 못 찾으면 가로 위치만 맞고 세로는 겹치는 블록 (높이가 조금 다르게 저장된 경우)
+        foreach (BoxCollider2D c in ground.GetComponentsInChildren<BoxCollider2D>(true))
+        {
+            Bounds b = Box(c);
+            if (Mathf.Abs(b.min.x - x0) < 0.06f && Mathf.Abs(b.max.x - x1) < 0.06f && b.min.y < y1 && b.max.y > y0 && b.size.y < 10f)
+            {
+                Debug.Log("[새맵] 비슷한 블록 찾음: " + c.name + " x " + b.min.x.ToString("0.##") + "~" + b.max.x.ToString("0.##") + " y " + b.min.y.ToString("0.##") + "~" + b.max.y.ToString("0.##"));
+                return c;
+            }
+        }
+        string near = "";
+        foreach (BoxCollider2D c in ground.GetComponentsInChildren<BoxCollider2D>(true))
+        {
+            Bounds b = Box(c), cb = c.bounds;
+            if (Mathf.Abs(b.center.x - (x0 + x1) * 0.5f) < 1.5f && b.min.y < y1 + 1f && b.max.y > y0 - 1f)
+                near += "\n   " + c.name + " 계산 x " + b.min.x.ToString("0.##") + "~" + b.max.x.ToString("0.##") + " y " + b.min.y.ToString("0.##") + "~" + b.max.y.ToString("0.##")
+                        + " / 실제 x " + cb.min.x.ToString("0.##") + "~" + cb.max.x.ToString("0.##") + " y " + cb.min.y.ToString("0.##") + "~" + cb.max.y.ToString("0.##") + " 켜짐 " + c.gameObject.activeInHierarchy;
+        }
+        if (near != "") Debug.Log("[새맵] 근처 블록 (x " + x0 + "):" + near);
+        return null;
+    }
+
+    static string MoveBlock(Transform ground, float x0, float x1, float y0, float y1, float newX0)
+    {
+        BoxCollider2D c = FindBlock(ground, x0, x1, y0, y1);
+        if (c == null) return "  (x " + x0 + " 블록 없음 - 이미 옮겼거나 바뀜)\n";
+        Undo.RecordObject(c.transform, "블록 옮김");
+        c.transform.position += new Vector3(newX0 - x0, 0f, 0f);
+        return "  x " + x0 + "~" + x1 + " → " + newX0 + "~" + (newX0 + x1 - x0) + "\n";
+    }
+
+    static string HideBlock(Transform ground, float x0, float x1, float y0, float y1)
+    {
+        BoxCollider2D c = FindBlock(ground, x0, x1, y0, y1);
+        if (c == null || !c.gameObject.activeSelf) return "  (x " + x0 + " 조각 없음 - 이미 끔)\n";
+        Undo.RecordObject(c.gameObject, "블록 끔");
+        c.gameObject.SetActive(false);
+        return "  x " + x0 + "~" + x1 + " 조각 끔\n";
+    }
+
+    static string SetLeft(Transform ground, float x0, float x1, float y0, float y1, float newX0)
+    {
+        BoxCollider2D c = FindBlock(ground, x0, x1, y0, y1);
+        if (c == null) return "  (x " + x0 + "~" + x1 + " 블록 없음 - 이미 바꿈)\n";
+        Transform t = c.transform;
+        Undo.RecordObject(t, "블록 크기");
+        Vector3 s = t.localScale;
+        s.x *= (x1 - newX0) / (x1 - x0);
+        t.localScale = s;
+        Bounds b = Box(c);
+        t.position += new Vector3(newX0 - b.min.x, 0f, 0f);
+        Bounds a = Box(c);
+        return "  x " + x0 + "~" + x1 + " → " + a.min.x.ToString("0.##") + "~" + a.max.x.ToString("0.##") + "\n";
+    }
+
+    // ─────────────────────────────────────────────
     // 13. 몬스터 프리팹: 위쪽으로도 더 멀리 알아챔 + 간염이 위쪽 플레이어에게 뛰어올라 공격
     static readonly string[] MonsterPrefabs =
     {
