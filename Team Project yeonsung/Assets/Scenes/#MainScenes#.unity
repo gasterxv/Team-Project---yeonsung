@@ -38744,8 +38744,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e0ff736c8dfa104cada99c48304be58, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MaxRemainingHealPotion: 5
-  RemainingHealPotion: 5
+  MaxRemainingHealPotion: 3
+  RemainingHealPotion: 3
   HealPotion: 0
   HpRecoveryTiming: 1
   HeartCellRecoveryAmount: 1

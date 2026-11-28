@@ -118,7 +118,7 @@ MonoBehaviour:
   chaseResumeGap: 0.35
   recognitionSensor: {fileID: 1473976500014293510}
   attackRangeSensor: {fileID: 3565083628368622379}
-  MonsterCurrentHP: 1
+  MonsterCurrentHP: 30
   MonsterWalkSpeed: 2
   chaseSpeed: 3
   returnSpeed: 6
