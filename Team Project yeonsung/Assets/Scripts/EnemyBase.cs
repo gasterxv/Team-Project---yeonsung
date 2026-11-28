@@ -26,6 +26,11 @@ public abstract class EnemyBase : MonoBehaviour
     [SerializeField, Min(0f)] private float chaseResumeGap = 0.35f;
     private bool stoppedNearPlayer;
 
+    [Header("피격 후 회복")]
+    [Tooltip("피격 애니메이션 끝 이벤트가 없어도 이 시간(초)이 지나면 피격 상태를 끝냄")]
+    [SerializeField, Min(0.05f)] private float damageRecoveryFallback = 0.5f;
+    private float damageStateStartTime;
+
     [Header("센서")]
     [SerializeField] private EnemySensor recognitionSensor;
     [SerializeField] private EnemySensor attackRangeSensor;
@@ -219,6 +224,10 @@ public abstract class EnemyBase : MonoBehaviour
         if (currentState == MonsterState.GetDamage)
         {
             StopHorizontalMovement();
+            // [버그 수정] 피격 애니메이션에 끝 이벤트(OnDamageAnimationEnd)가 없으면(뎅기) 영원히 피격 상태로 멈춰 있었음
+            // → 일정 시간이 지나면 스스로 피격 상태를 끝냄
+            if (Time.time - damageStateStartTime >= damageRecoveryFallback)
+                OnDamageAnimationEnd();
             return;
         }
 
@@ -477,6 +486,7 @@ public abstract class EnemyBase : MonoBehaviour
         if (nextState == MonsterState.Attack && MonsterAttackCooldown > 0f) return;
         if (currentState == MonsterState.Attack) MonsterAttackCooldown = MonsterAttackInterval;
         currentState = nextState;
+        if (nextState == MonsterState.GetDamage) damageStateStartTime = Time.time;
         isAttackLocked = nextState == MonsterState.Attack;
         if (nextState != MonsterState.Walk) StopHorizontalMovement();
         OnStateChanged(nextState);

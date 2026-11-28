@@ -24,6 +24,81 @@ public class JabMob1 : EnemyBase
 
     private GameObject activeAttackBox;
 
+    [Header("공격 후 돌아오는 모션")]
+    [Tooltip("공격이 끝나기 전 이 시간(초) 동안 공격 그림을 거꾸로 재생해 처음 자세로 돌아옴. 0이면 끔")]
+    [SerializeField, Min(0f)] private float attackReturnDuration = 0.35f;
+    private bool attackReturnActive;
+    private float attackStartTime;
+
+    // [버그 수정] 공격 그림이 발톱을 내리친 장면에서 끝나 그대로 멈춰 있다가 바로 Idle로 바뀌던 것
+    // → 공격이 끝나기 직전에 공격 그림을 거꾸로 재생해서 돌아오는 모션을 보여 줌 (새 그림 없이)
+    protected override void LateUpdate()
+    {
+        base.LateUpdate();
+        if (!attackReturnActive || animator == null || attackReturnDuration <= 0f) return;
+        if (CurrentState != MonsterState.Attack) { attackReturnActive = false; animator.speed = 1f; return; }
+        float duration = Mathf.Max(attackDuration, attackBoxSpawnDelay + attackBoxLifetime);
+        float returnStart = duration - attackReturnDuration;
+        float elapsed = Time.time - attackStartTime;
+        if (elapsed < returnStart) return;
+        int stateHash = Animator.StringToHash("Base Layer." + attackStateName);
+        if (!animator.HasState(0, stateHash)) return;
+        // 공격 그림을 다 보여 준 뒤에만 (공격 시간이 너무 짧으면 거꾸로 재생 안 함)
+        AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(0);
+        if (info.fullPathHash == stateHash && animator.speed > 0f && info.normalizedTime < 1f) return;
+        float t = 1f - Mathf.Clamp01((elapsed - returnStart) / attackReturnDuration);
+        animator.speed = 0f;
+        animator.Play(stateHash, 0, t);
+    }
+
+    // [버그 수정] 몬스터 몸을 밟고 설 수 있던 것(C 내려찍기 포함) → 간염(JabMob2)처럼 플레이어 몸과는 부딪히지 않게
+    private PlayerController bodyIgnoredPlayer;
+
+    protected override void FixedUpdate()
+    {
+        IgnorePlayerBodyCollisions();
+        base.FixedUpdate();
+    }
+
+    // 몸을 통과하게 되면서, 플레이어가 몸 안에 겹쳐 서 있으면 앞쪽 공격 센서에 안 잡혀 공격하지 않던 것
+    // → 몸이 겹쳐 있어도 공격 범위로 봄
+    protected override bool IsWithinAttackRange(Collider2D target, bool sensorDetected)
+    {
+        return sensorDetected || PlayerOverlapsBody();
+    }
+
+    private bool PlayerOverlapsBody()
+    {
+        if (bodyIgnoredPlayer == null) return false;
+        Rigidbody2D ownBody = GetComponent<Rigidbody2D>();
+        foreach (Collider2D own in GetComponentsInChildren<Collider2D>())
+        {
+            if (own.isTrigger || own.attachedRigidbody != ownBody) continue;
+            foreach (Collider2D pc in bodyIgnoredPlayer.GetComponentsInChildren<Collider2D>())
+            {
+                if (pc.isTrigger) continue;
+                ColliderDistance2D d = own.Distance(pc);
+                if (d.isValid && d.distance <= 0.05f) return true;
+            }
+        }
+        return false;
+    }
+
+    private void IgnorePlayerBodyCollisions()
+    {
+        if (bodyIgnoredPlayer != null && bodyIgnoredPlayer.gameObject.activeInHierarchy) return;
+        bodyIgnoredPlayer = FindFirstObjectByType<PlayerController>();
+        if (bodyIgnoredPlayer == null) return;
+        Rigidbody2D ownBody = GetComponent<Rigidbody2D>();
+        Collider2D[] playerCols = bodyIgnoredPlayer.GetComponentsInChildren<Collider2D>(true);
+        foreach (Collider2D own in GetComponentsInChildren<Collider2D>(true))
+        {
+            if (own.isTrigger || own.attachedRigidbody != ownBody) continue;
+            foreach (Collider2D pc in playerCols)
+                if (!pc.isTrigger) Physics2D.IgnoreCollision(own, pc, true);
+        }
+    }
+
     protected override void Awake()
     {
         // EnemyBase의 Rigidbody2D, 초기 HP 등 초기화 유지
@@ -48,6 +123,10 @@ public class JabMob1 : EnemyBase
     protected override void OnStateChanged(MonsterState newState)
     {
         ClearAttack();
+        // 공격 후 돌아오는 모션 때문에 멈춰 둔 Animator 속도를 되돌림
+        if (animator != null) animator.speed = 1f;
+        attackReturnActive = newState == MonsterState.Attack;
+        attackStartTime = Time.time;
 
         if (newState == MonsterState.Dead)
         {
@@ -171,6 +250,16 @@ public class JabMob1 : EnemyBase
 
         localPosition.x =
             Mathf.Abs(localPosition.x) * FacingDirection;
+
+        // 플레이어가 몸과 겹쳐 있으면(몸을 통과하므로 가능) 앞쪽 대신 겹친 플레이어 위치에 공격 박스를 만듦
+        if (PlayerOverlapsBody())
+        {
+            float playerX = bodyIgnoredPlayer.GetComponent<Collider2D>() != null
+                ? bodyIgnoredPlayer.GetComponent<Collider2D>().bounds.center.x
+                : bodyIgnoredPlayer.transform.position.x;
+            localPosition.x = transform.InverseTransformPoint(
+                new Vector3(playerX, transform.position.y, 0f)).x;
+        }
 
         activeAttackBox = Instantiate(
             attackBoxPrefab,
