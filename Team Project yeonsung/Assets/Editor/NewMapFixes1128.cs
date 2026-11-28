@@ -18,6 +18,7 @@ public static class NewMapFixes1128
         log += Potions(root);
         log += O2ToPlatforms(root);
         log += CameraSetup();
+        log += HideBarrierPlaceholders(root);
         EditorSceneManager.MarkSceneDirty(root.scene);
         Debug.Log(log + "→ Ctrl+S로 씬 저장");
     }
@@ -189,6 +190,21 @@ public static class NewMapFixes1128
             },
         };
         s += "  카메라 구역 2개 (기둥 왼쪽/오른쪽)\n";
+        return s;
+    }
+
+    // ⑥ 웨이브 막(감염벽 자리) 분홍 막대: 게임에서는 원래 숨겨지지만 에디터 화면에도 안 보이게 그림만 끔
+    //    (WaveRoom이 이 그림을 본떠 '자라나는 감염벽'을 만드므로 지우지 않고 끄기만 함)
+    static string HideBarrierPlaceholders(GameObject root)
+    {
+        string s = "";
+        foreach (WaveRoom w in root.GetComponentsInChildren<WaveRoom>(true))
+            foreach (Transform t in w.GetComponentsInChildren<Transform>(true))
+            {
+                if (!t.name.StartsWith("[웨이브 막]")) continue;
+                SpriteRenderer r = t.GetComponent<SpriteRenderer>();
+                if (r != null && r.enabled) { Undo.RecordObject(r, "막 그림 끔"); r.enabled = false; s += "  " + t.name + " 분홍 막대 숨김\n"; }
+            }
         return s;
     }
 

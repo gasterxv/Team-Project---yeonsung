@@ -89,6 +89,8 @@ public static class NewMapGroundSkin
         if (floorSegs == null || floorCapL == null || floorCapR == null)
             Debug.LogWarning("[새맵] 중경 땅 바닥 조각을 못 찾아서 바닥도 벽 그림으로 깔아요: " + FloorDir);
 
+        MakeCornerSprites();
+
         Undo.SetCurrentGroupName("새맵 땅 그림");
         int group = Undo.GetCurrentGroup();
 
@@ -223,30 +225,16 @@ public static class NewMapGroundSkin
             if (x1 - x0 < 0.25f) continue;
             // 얇은 기둥 끝(폭 1칸 미만, 양쪽이 다 빈 공간): 띠 한 장을 찌그러뜨려 깔면 무늬 없는 분홍 막대가 됨 → 양옆 벽 띠만 보이게
             if (x1 - x0 < 1f && outerL && outerR) continue;
-            // 안쪽 모서리(줄 끝 너머가 벽으로 막힘): 어느 띠도 덮지 않아 검은 네모가 보이던 곳 → 띠를 벽 속으로 조금 늘려 덮음
-            float extL = InnerCornerLength(start - 1, j, -1, 0, 0, floor ? 1 : -1);
-            float extR = InnerCornerLength(end, j, 1, 0, 0, floor ? 1 : -1);
-            float sL = CornerDepthScale(start - 1, j, 0, inward), sR = CornerDepthScale(end, j, 0, inward);
-            Transform run;
-            if (floor && floorSegs != null)
-            {
-                run = MakeFloorRun(new Vector3(x0, y), x1 - x0, depths, outerL, outerR);
-                CornerFill(run, floorSegs[0], -extL, extL, sL * Depth / FDepth > 1f ? 1f : sL * Depth / FDepth);
-                CornerFill(run, floorSegs[SegPerStrip - 1], x1 - x0, extR, sR * Depth / FDepth > 1f ? 1f : sR * Depth / FDepth);
-            }
-            else if (floor)
-            {
-                run = MakeRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor, "바닥");
-                CornerFill(run, mid, -extL, extL, sL);
-                CornerFill(run, mid, x1 - x0, extR, sR);
-            }
-            else
-            {
-                depths.Reverse();
-                run = MakeRun(new Vector3(x1, y), 180f, x1 - x0, depths, outerR, outerL, ref nextCeiling, "천장");
-                CornerFill(run, mid, -extR, extR, sR);        // 천장은 뒤집혀 있어서 오른쪽이 줄의 시작
-                CornerFill(run, mid, x1 - x0, extL, sL);
-            }
+            if (floor && floorSegs != null) MakeFloorRun(new Vector3(x0, y), x1 - x0, depths, outerL, outerR);
+            else if (floor) MakeRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor, "바닥");
+            else { depths.Reverse(); MakeRun(new Vector3(x1, y), 180f, x1 - x0, depths, outerR, outerL, ref nextCeiling, "천장"); }
+            // 안쪽 모서리(줄 끝 너머가 벽으로 막힘): 어느 띠도 덮지 않아 검은 네모가 보이던 곳
+            // → 모서리 꼭짓점에서 멀어질수록 띠와 같은 밝기로 어두워지는 그림으로 채움 (띠를 늘리지 않으니 삐져나오지 않음)
+            int airDj = floor ? 1 : -1;
+            float eL = InnerCornerLength(start - 1, j, -1, 0, 0, airDj), eR = InnerCornerLength(end, j, 1, 0, 0, airDj);
+            float dL = CornerDepthScale(start - 1, j, 0, inward) * Depth, dR = CornerDepthScale(end, j, 0, inward) * Depth;
+            CornerPatch(new Vector3(x0, y), -1f, floor ? -1f : 1f, eL, dL, floor);
+            CornerPatch(new Vector3(x1, y), 1f, floor ? -1f : 1f, eR, dR, floor);
             count++;
         }
         return count;
@@ -268,24 +256,9 @@ public static class NewMapGroundSkin
             float y0 = minY + start * Cell, y1 = minY + end * Cell;
             float x = minX + (leftFacing ? i : i + 1) * Cell;
             if (y1 - y0 < 0.25f) continue;
-            // 안쪽 모서리 채우기 (위 ScanRow 설명과 같음)
-            // 벽 띠는 늘리지 않음 (바닥·천장 띠가 벽 밑으로 이어지며 모서리를 덮음. 벽 띠를 늘리면 바닥 아래로 밝은 토막이 삐져나옴)
-            int airDi = leftFacing ? -1 : 1;
-            float extB = 0f * InnerCornerLength(i, start - 1, 0, -1, airDi, 0), extT = 0f * InnerCornerLength(i, end, 0, 1, airDi, 0);
-            float sB = CornerDepthScale(i, start - 1, inward, 0), sT = CornerDepthScale(i, end, inward, 0);
-            if (leftFacing)
-            {
-                Transform run = MakeRun(new Vector3(x, y0), 90f, y1 - y0, depths, false, false, ref nextWall, "벽");
-                CornerFill(run, mid, -extB, extB, sB);
-                CornerFill(run, mid, y1 - y0, extT, sT);
-            }
-            else
-            {
-                depths.Reverse();
-                Transform run = MakeRun(new Vector3(x, y1), -90f, y1 - y0, depths, false, false, ref nextWall, "벽");
-                CornerFill(run, mid, -extT, extT, sT);
-                CornerFill(run, mid, y1 - y0, extB, sB);
-            }
+            // (안쪽 모서리는 ScanRow에서 채움)
+            if (leftFacing) MakeRun(new Vector3(x, y0), 90f, y1 - y0, depths, false, false, ref nextWall, "벽");
+            else { depths.Reverse(); MakeRun(new Vector3(x, y1), -90f, y1 - y0, depths, false, false, ref nextWall, "벽"); }
             count++;
         }
         return count;
@@ -314,22 +287,74 @@ public static class NewMapGroundSkin
         return Mathf.Clamp01(DepthAt(ci, cj, di, dj) / Depth);
     }
 
-    // 띠를 줄 끝 너머(벽 속)로 len만큼 늘린 조각. 모든 띠보다 뒤에 그려서(땅 안쪽 바로 위) 혹·끝이 다른 띠를 가리지 않음
-    static void CornerFill(Transform run, Sprite sprite, float x, float len, float depthScale)
+    // 모서리 꼭짓점 p에서 (sx, sy) 방향으로 가로 w × 세로 h 네모를 채움. 띠보다 뒤(땅 안쪽 바로 위)에 그림
+    static void CornerPatch(Vector3 p, float sx, float sy, float w, float h, bool floor)
     {
-        if (run == null || sprite == null || len < 0.15f) return;
-        float natural = sprite.bounds.size.x;
-        const float Overlap = 0.03f;
+        Sprite sprite = floor ? cornerFloor : cornerWall;
+        if (sprite == null || w < 0.15f || h < 0.15f) return;
         GameObject g = new GameObject("모서리 채움");
-        g.transform.SetParent(run, false);
-        bool atStart = x < 0f;
-        g.transform.localPosition = new Vector3(atStart ? x : x - Overlap, 0f, 0f);
-        g.transform.localScale = new Vector3((len + Overlap) / natural, Mathf.Max(0.05f, depthScale), 1f);
+        g.transform.SetParent(skinRoot, false);
+        g.transform.position = p;
+        g.transform.localScale = new Vector3(sx * w / Depth, sy * h / Depth, 1f);   // 그림 한 장 = Depth × Depth
         SpriteRenderer r = g.AddComponent<SpriteRenderer>();
         r.sprite = sprite;
         r.sortingOrder = FillOrder + 1;
         corners++;
         pieces++;
+    }
+
+    // ---- 모서리 그림 만들기: 띠 그림을 깊이(줄)마다 평균 낸 색 → 꼭짓점에서의 거리로 칠함 ----
+    const int CornerPx = 128;
+    const string CornerWallPath = Dir + "모서리_채움_벽.png", CornerFloorPath = FloorDir + "모서리_채움_바닥.png";
+    static Sprite cornerWall, cornerFloor;
+
+    static void MakeCornerSprites()
+    {
+        cornerWall = MakeCorner(MidPath, CornerWallPath, SurfaceFromTop, PPU);
+        cornerFloor = floorSegs != null ? MakeCorner(FloorDir + "중경땅_A_07.png", CornerFloorPath, FTop, FPPU) : cornerWall;
+    }
+
+    static Sprite MakeCorner(string srcPath, string outPath, float surfacePx, float ppu)
+    {
+        string full = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath), srcPath);
+        if (!System.IO.File.Exists(full)) return null;
+        Texture2D src = new Texture2D(2, 2);
+        src.LoadImage(System.IO.File.ReadAllBytes(full));
+        // 줄마다 평균 색 (위 = 밟는 면, 아래로 갈수록 깊음). 테두리 검은 선을 피하려고 면 아래 25px부터
+        int top = src.height - 1 - Mathf.RoundToInt(surfacePx + 25f);
+        List<Color> profile = new List<Color>();
+        for (int y = top; y >= 0; y--)
+        {
+            Color sum = Color.clear; float wsum = 0f;
+            for (int x = 0; x < src.width; x += 6)
+            {
+                Color c = src.GetPixel(x, y);
+                if (c.a < 0.5f) continue;
+                sum += c; wsum += 1f;
+            }
+            profile.Add(wsum > 0f ? sum / wsum : FillColor);
+        }
+        Object.DestroyImmediate(src);
+        float pxPerUnit = ppu;
+        Texture2D t = new Texture2D(CornerPx, CornerPx, TextureFormat.RGBA32, false);
+        for (int py = 0; py < CornerPx; py++)
+            for (int px = 0; px < CornerPx; px++)
+            {
+                float dx = (px + 0.5f) * Depth / CornerPx, dy = (py + 0.5f) * Depth / CornerPx;
+                float r = Mathf.Sqrt(dx * dx + dy * dy);
+                int k = Mathf.RoundToInt(r * pxPerUnit);
+                Color c = k < profile.Count ? profile[k] : FillColor;
+                if (r > Depth) c = Color.Lerp(c, FillColor, Mathf.Clamp01((r - Depth) / (Depth * 0.4f)));
+                c.a = 1f;
+                t.SetPixel(px, py, c);
+            }
+        t.Apply();
+        string outFull = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath), outPath);
+        System.IO.File.WriteAllBytes(outFull, t.EncodeToPNG());
+        Object.DestroyImmediate(t);
+        AssetDatabase.ImportAsset(outPath);
+        Setup(outPath, Vector2.zero, CornerPx / Depth);   // 그림 한 장 = Depth × Depth, 기준점 = 꼭짓점(왼쪽 아래)
+        return AssetDatabase.LoadAssetAtPath<Sprite>(outPath);
     }
 
     // ---------------- 그림 조각 ----------------
