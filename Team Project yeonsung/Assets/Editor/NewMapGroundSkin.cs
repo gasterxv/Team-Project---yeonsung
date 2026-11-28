@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -56,7 +56,7 @@ public static class NewMapGroundSkin
     static int gw, gh;
     static Transform skinRoot;
     static Sprite mid, capL, capR, square;
-    static int pieces, masks;
+    static int pieces, masks, corners;
     static int nextWall, nextCeiling, nextFloor;
 
     [MenuItem("Tools/새맵/9. 땅 그림 입히기 (다시 누르면 새로 만듦)")]
@@ -98,7 +98,7 @@ public static class NewMapGroundSkin
         Undo.RegisterCreatedObjectUndo(s, SkinName);
         s.transform.SetParent(root.transform, false);
         skinRoot = s.transform;
-        pieces = masks = 0;
+        pieces = masks = corners = 0;
         nextWall = WallOrder; nextCeiling = CeilingOrder; nextFloor = FloorOrder;
 
         List<BoxCollider2D> blocks = new List<BoxCollider2D>();
@@ -133,7 +133,7 @@ public static class NewMapGroundSkin
         if (nextWall > CeilingOrder || nextCeiling > FloorOrder || nextFloor > -10)
             Debug.LogWarning("[새맵] 땅 그림: 줄이 너무 많아 그리는 순서 범위가 겹쳐요 (벽 " + nextWall + ", 천장 " + nextCeiling + ", 바닥 " + nextFloor + "). 순서 범위를 넓혀 주세요.");
         Debug.Log("[새맵] 땅 그림: 바닥 " + floors + "줄, 천장 " + ceilings + "줄, 벽 " + walls + "줄, 그림 조각 " + pieces
-                  + "개, 얇은 곳 자르기 " + masks + "개. Ctrl+S로 저장해 주세요.");
+                  + "개, 얇은 곳 자르기 " + masks + "개, 안쪽 모서리 채움 " + corners + "개. Ctrl+S로 저장해 주세요.");
     }
 
     // ---------------- 격자 ----------------
@@ -221,9 +221,32 @@ public static class NewMapGroundSkin
             bool outerL = !S(start - 1, j) && !S(start - 1, airJ);
             bool outerR = !S(end, j) && !S(end, airJ);
             if (x1 - x0 < 0.25f) continue;
-            if (floor && floorSegs != null) MakeFloorRun(new Vector3(x0, y), x1 - x0, depths, outerL, outerR);
-            else if (floor) MakeRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor, "바닥");
-            else { depths.Reverse(); MakeRun(new Vector3(x1, y), 180f, x1 - x0, depths, outerR, outerL, ref nextCeiling, "천장"); }
+            // 얇은 기둥 끝(폭 1칸 미만, 양쪽이 다 빈 공간): 띠 한 장을 찌그러뜨려 깔면 무늬 없는 분홍 막대가 됨 → 양옆 벽 띠만 보이게
+            if (x1 - x0 < 1f && outerL && outerR) continue;
+            // 안쪽 모서리(줄 끝 너머가 벽으로 막힘): 어느 띠도 덮지 않아 검은 네모가 보이던 곳 → 띠를 벽 속으로 조금 늘려 덮음
+            float extL = InnerCornerLength(start - 1, j, -1, 0, 0, floor ? 1 : -1);
+            float extR = InnerCornerLength(end, j, 1, 0, 0, floor ? 1 : -1);
+            float sL = CornerDepthScale(start - 1, j, 0, inward), sR = CornerDepthScale(end, j, 0, inward);
+            Transform run;
+            if (floor && floorSegs != null)
+            {
+                run = MakeFloorRun(new Vector3(x0, y), x1 - x0, depths, outerL, outerR);
+                CornerFill(run, floorSegs[0], -extL, extL, sL * Depth / FDepth > 1f ? 1f : sL * Depth / FDepth);
+                CornerFill(run, floorSegs[SegPerStrip - 1], x1 - x0, extR, sR * Depth / FDepth > 1f ? 1f : sR * Depth / FDepth);
+            }
+            else if (floor)
+            {
+                run = MakeRun(new Vector3(x0, y), 0f, x1 - x0, depths, outerL, outerR, ref nextFloor, "바닥");
+                CornerFill(run, mid, -extL, extL, sL);
+                CornerFill(run, mid, x1 - x0, extR, sR);
+            }
+            else
+            {
+                depths.Reverse();
+                run = MakeRun(new Vector3(x1, y), 180f, x1 - x0, depths, outerR, outerL, ref nextCeiling, "천장");
+                CornerFill(run, mid, -extR, extR, sR);        // 천장은 뒤집혀 있어서 오른쪽이 줄의 시작
+                CornerFill(run, mid, x1 - x0, extL, sL);
+            }
             count++;
         }
         return count;
@@ -245,17 +268,74 @@ public static class NewMapGroundSkin
             float y0 = minY + start * Cell, y1 = minY + end * Cell;
             float x = minX + (leftFacing ? i : i + 1) * Cell;
             if (y1 - y0 < 0.25f) continue;
-            if (leftFacing) MakeRun(new Vector3(x, y0), 90f, y1 - y0, depths, false, false, ref nextWall, "벽");
-            else { depths.Reverse(); MakeRun(new Vector3(x, y1), -90f, y1 - y0, depths, false, false, ref nextWall, "벽"); }
+            // 안쪽 모서리 채우기 (위 ScanRow 설명과 같음)
+            // 벽 띠는 늘리지 않음 (바닥·천장 띠가 벽 밑으로 이어지며 모서리를 덮음. 벽 띠를 늘리면 바닥 아래로 밝은 토막이 삐져나옴)
+            int airDi = leftFacing ? -1 : 1;
+            float extB = 0f * InnerCornerLength(i, start - 1, 0, -1, airDi, 0), extT = 0f * InnerCornerLength(i, end, 0, 1, airDi, 0);
+            float sB = CornerDepthScale(i, start - 1, inward, 0), sT = CornerDepthScale(i, end, inward, 0);
+            if (leftFacing)
+            {
+                Transform run = MakeRun(new Vector3(x, y0), 90f, y1 - y0, depths, false, false, ref nextWall, "벽");
+                CornerFill(run, mid, -extB, extB, sB);
+                CornerFill(run, mid, y1 - y0, extT, sT);
+            }
+            else
+            {
+                depths.Reverse();
+                Transform run = MakeRun(new Vector3(x, y1), -90f, y1 - y0, depths, false, false, ref nextWall, "벽");
+                CornerFill(run, mid, -extT, extT, sT);
+                CornerFill(run, mid, y1 - y0, extB, sB);
+            }
             count++;
         }
         return count;
     }
 
+    // ---------------- 안쪽 모서리 채우기 ----------------
+
+    // (ci,cj)부터 (si,sj) 방향으로, 칸도 땅이고 빈 공간 쪽 옆칸(airDi,airDj)도 땅인 칸이 몇 칸 이어지는지 (최대 띠 깊이만큼)
+    static float InnerCornerLength(int ci, int cj, int si, int sj, int airDi, int airDj)
+    {
+        int max = Mathf.CeilToInt(Depth / Cell), n = 0;
+        while (n < max)
+        {
+            int a = ci + si * n, b = cj + sj * n;
+            if (a < 0 || b < 0 || a >= gw || b >= gh) break;   // 맵 바깥은 채우지 않음
+            if (!S(a, b) || !S(a + airDi, b + airDj)) break;
+            n++;
+        }
+        return n * Cell;
+    }
+
+    // 모서리 칸에서 안쪽으로 보여 줄 깊이 비율 (얇으면 그림을 눌러서 반대쪽으로 삐져나가지 않게)
+    static float CornerDepthScale(int ci, int cj, int di, int dj)
+    {
+        if (!S(ci, cj)) return 1f;
+        return Mathf.Clamp01(DepthAt(ci, cj, di, dj) / Depth);
+    }
+
+    // 띠를 줄 끝 너머(벽 속)로 len만큼 늘린 조각. 모든 띠보다 뒤에 그려서(땅 안쪽 바로 위) 혹·끝이 다른 띠를 가리지 않음
+    static void CornerFill(Transform run, Sprite sprite, float x, float len, float depthScale)
+    {
+        if (run == null || sprite == null || len < 0.15f) return;
+        float natural = sprite.bounds.size.x;
+        const float Overlap = 0.03f;
+        GameObject g = new GameObject("모서리 채움");
+        g.transform.SetParent(run, false);
+        bool atStart = x < 0f;
+        g.transform.localPosition = new Vector3(atStart ? x : x - Overlap, 0f, 0f);
+        g.transform.localScale = new Vector3((len + Overlap) / natural, Mathf.Max(0.05f, depthScale), 1f);
+        SpriteRenderer r = g.AddComponent<SpriteRenderer>();
+        r.sprite = sprite;
+        r.sortingOrder = FillOrder + 1;
+        corners++;
+        pieces++;
+    }
+
     // ---------------- 그림 조각 ----------------
 
     // origin에서 로컬 +x 방향으로 길이 L, 로컬 +y = 빈 공간 쪽. depths = 칸마다 보여 줄 깊이 (로컬 +x 순서)
-    static void MakeRun(Vector3 origin, float rotZ, float L, List<float> depths, bool capStart, bool capEnd, ref int order, string kind)
+    static Transform MakeRun(Vector3 origin, float rotZ, float L, List<float> depths, bool capStart, bool capEnd, ref int order, string kind)
     {
         int o = order;
         order += 2;   // 이 줄만 쓰는 그리기 순서 2칸 (가운데, 끝 조각)
@@ -282,10 +362,11 @@ public static class NewMapGroundSkin
         if (capEnd) Piece(run.transform, capR, L, 1f, o + 1, thin);
 
         if (thin) AddMasks(run.transform, depths, o, AboveSurface);
+        return run.transform;
     }
 
     // 바닥 한 줄: 중경 땅 조각을 이어서 깔기. 조각 순서는 A00→…→A14→B00→…→B14→A00 (끝끼리 섞어 둬서 이음매가 안 보임)
-    static void MakeFloorRun(Vector3 origin, float L, List<float> depths, bool capStart, bool capEnd)
+    static Transform MakeFloorRun(Vector3 origin, float L, List<float> depths, bool capStart, bool capEnd)
     {
         int o = nextFloor;
         nextFloor += 2;
@@ -333,6 +414,7 @@ public static class NewMapGroundSkin
         if (capEnd) Piece(run.transform, floorCapR, L, 1f, o + 1, thin);
 
         if (thin) AddMasks(run.transform, d2, o, FAbove);
+        return run.transform;
     }
 
     static void Piece(Transform parent, Sprite sprite, float x, float sx, int order, bool masked)
